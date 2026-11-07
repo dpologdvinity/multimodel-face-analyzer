@@ -1,0 +1,23 @@
+# typos config: https://github.com/crate-ci/typos
+[files]
+extend-exclude = [
+  "*.{gif,png,jpg,jpeg,webp,ico,svg,pdf,woff,woff2,ttf}",
+  # Vendored upstream MiVOLO code (also excluded from ruff); typos are upstream's.
+  "src/face_analyzer/nets/**",
+  # Serialized OpenCV network graph, not prose.
+  "models/*.pbtxt",
+]
+
+[default.extend-words]
+# "Van Gool" (author surname in a citation).
+"gool" = "gool"
+# Variable names for y-coordinates of an intersection box (ix1, iy1, ...).
+"iy" = "iy"
+# "wdth" is the OpenType variable-font width axis tag.
+"wdth" = "wdth"
+
+[default.extend-identifiers]
+# cv2.solvePnP (OpenCV perspective-n-point solver).
+"solvePnP" = "solvePnP"
+# "SAVEd" is the doc's emphasized form of a SAVE command.
+"SAVEd" = "SAVEd"
