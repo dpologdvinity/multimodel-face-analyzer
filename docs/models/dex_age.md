@@ -44,12 +44,12 @@ import cv2
 # Preprocess image
 vgg_mean = [103.939, 116.779, 123.68]  # BGR order
 blob = cv2.dnn.blobFromImage(
-    image,           # OpenCV Mat/ndarray in BGR
+    image,  # OpenCV Mat/ndarray in BGR
     scalefactor=1.0,
     size=(224, 224),
     mean=vgg_mean,
-    swapRB=False,    # Image already in BGR; no swap needed
-    crop=False       # Resize, don't crop
+    swapRB=False,  # Image already in BGR; no swap needed
+    crop=False,  # Resize, don't crop
 )
 ```
 
