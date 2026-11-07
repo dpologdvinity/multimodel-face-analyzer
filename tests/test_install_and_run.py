@@ -28,13 +28,13 @@ class NativeInstallerVerbosityTests(unittest.TestCase):
             for name in ("python3", "python3.11", "apt-get"):
                 (fake_bin / name).write_text("#!/bin/sh\nexit 0\n")
                 (fake_bin / name).chmod(0o755)
-            (fake_bin / "sudo").write_text("#!/bin/sh\nexec \"$@\"\n")
+            (fake_bin / "sudo").write_text('#!/bin/sh\nexec "$@"\n')
             (fake_bin / "sudo").chmod(0o755)
             venv_python.write_text(
-                '#!/bin/sh\n'
+                "#!/bin/sh\n"
                 'if [ -n "$CAPTURE_ENV" ]; then env > "$CAPTURE_ENV"; fi\n'
                 'if [ -n "$CAPTURE_ARGS" ]; then echo "$*" >> "$CAPTURE_ARGS"; fi\n'
-                'exit 0\n'
+                "exit 0\n"
             )
             venv_python.chmod(0o755)
 
@@ -155,7 +155,9 @@ class NativeInstallerVerbosityTests(unittest.TestCase):
         output = self._run_installer("--verbose", input_data=selections)
 
         self.assertIn("\033[1;32m  4) dan\033[0m", output)
-        self.assertIn("\033[32mopencv-python-headless, numpy, torch, torchvision\033[0m", output)
+        self.assertIn(
+            "\033[32mopencv-python-headless, numpy, torch, torchvision\033[0m", output
+        )
 
     def test_hidden_mode_omits_choices_with_new_optional_packages(self):
         """Verify --hidden mode excludes models requiring additional dependencies."""
@@ -212,11 +214,22 @@ class NativeInstallerVerbosityTests(unittest.TestCase):
         selections = "\n".join(["2", "1", "0", "0", "2", "0", "0", "0"]) + "\n"
         output = self._run_installer(input_data=selections, capture_args=True)
 
-        fetch = [line for line in output.splitlines() if line.startswith("tools/fetch_models.py --keys ")]
+        fetch = [
+            line
+            for line in output.splitlines()
+            if line.startswith("tools/fetch_models.py --keys ")
+        ]
         self.assertEqual(len(fetch), 1)
-        for pair in ("SCRFD_FACE_MODEL=scrfd", "AGE_MODEL=fairface", "GENDER_MODEL=", "EMOTION_MODEL=ferplus"):
+        for pair in (
+            "SCRFD_FACE_MODEL=scrfd",
+            "AGE_MODEL=fairface",
+            "GENDER_MODEL=",
+            "EMOTION_MODEL=ferplus",
+        ):
             self.assertIn(f" {pair} ", f"{fetch[0]} ")
-        self.assertLess(output.index("tools/fetch_models.py"), output.index("-m streamlit run"))
+        self.assertLess(
+            output.index("tools/fetch_models.py"), output.index("-m streamlit run")
+        )
 
 
 class NativeInstallerOpenCVPinTests(unittest.TestCase):
@@ -238,7 +251,9 @@ class NativeInstallerOpenCVPinTests(unittest.TestCase):
             for line in SCRIPT.read_text().splitlines()
             if 'install "${OPENCV_PACKAGE}' in line
         ]
-        self.assertEqual(install_lines, [f'"${{PIP[@]}}" install "${{OPENCV_PACKAGE}}=={pinned[0]}"'])
+        self.assertEqual(
+            install_lines, [f'"${{PIP[@]}}" install "${{OPENCV_PACKAGE}}=={pinned[0]}"']
+        )
 
 
 if __name__ == "__main__":

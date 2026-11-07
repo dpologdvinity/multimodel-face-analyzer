@@ -1,4 +1,5 @@
 """System-wide constants, label sets, model paths, and parameter defaults."""
+
 from __future__ import annotations
 
 import os
@@ -54,15 +55,75 @@ DEX_MEAN_VALUES = (103.939, 116.779, 123.68)
 DEX_MAX_AGE_SD = 10.0
 
 # Classification labels
-AGE_LIST = ['(0-2)', '(4-6)', '(8-12)', '(15-20)', '(25-32)', '(38-43)', '(48-53)', '(60-100)']
-GENDER_LIST = ['Male', 'Female']
-EMOTION_LABELS_DAN = ['neutral', 'happy', 'sad', 'surprise', 'fear', 'disgust', 'anger']
-EMOTION_LABELS_MINI_XCEPTION = ['angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral']
-EMOTION_LABELS_FERPLUS = ['neutral', 'happiness', 'surprise', 'sadness', 'anger', 'disgust', 'fear', 'contempt']
-EMOTION_LABELS_HSEMOTION = ['anger', 'contempt', 'disgust', 'fear', 'happiness', 'neutral', 'sadness', 'surprise']
-RACE_LABELS_FAIRFACE = ['White', 'Black', 'Latino_Hispanic', 'East Asian', 'Southeast Asian', 'Indian', 'Middle Eastern']
-RACE_LABELS_DEEPFACE = ['asian', 'indian', 'black', 'white', 'middle eastern', 'latino hispanic']
-FAIRFACE_AGE_LABELS = ["0-2", "3-9", "10-19", "20-29", "30-39", "40-49", "50-59", "60-69", "70+"]
+AGE_LIST = [
+    "(0-2)",
+    "(4-6)",
+    "(8-12)",
+    "(15-20)",
+    "(25-32)",
+    "(38-43)",
+    "(48-53)",
+    "(60-100)",
+]
+GENDER_LIST = ["Male", "Female"]
+EMOTION_LABELS_DAN = ["neutral", "happy", "sad", "surprise", "fear", "disgust", "anger"]
+EMOTION_LABELS_MINI_XCEPTION = [
+    "angry",
+    "disgust",
+    "fear",
+    "happy",
+    "sad",
+    "surprise",
+    "neutral",
+]
+EMOTION_LABELS_FERPLUS = [
+    "neutral",
+    "happiness",
+    "surprise",
+    "sadness",
+    "anger",
+    "disgust",
+    "fear",
+    "contempt",
+]
+EMOTION_LABELS_HSEMOTION = [
+    "anger",
+    "contempt",
+    "disgust",
+    "fear",
+    "happiness",
+    "neutral",
+    "sadness",
+    "surprise",
+]
+RACE_LABELS_FAIRFACE = [
+    "White",
+    "Black",
+    "Latino_Hispanic",
+    "East Asian",
+    "Southeast Asian",
+    "Indian",
+    "Middle Eastern",
+]
+RACE_LABELS_DEEPFACE = [
+    "asian",
+    "indian",
+    "black",
+    "white",
+    "middle eastern",
+    "latino hispanic",
+]
+FAIRFACE_AGE_LABELS = [
+    "0-2",
+    "3-9",
+    "10-19",
+    "20-29",
+    "30-39",
+    "40-49",
+    "50-59",
+    "60-69",
+    "70+",
+]
 MASK_LABELS = ["with_mask", "without_mask"]
 
 # Thresholds & margins
@@ -107,12 +168,27 @@ RETINAFACE_NMS_THRESHOLD = 0.4
 
 # Skeleton connections
 HAND_CONNECTIONS = [
-    (0, 1), (1, 2), (2, 3), (3, 4),          # thumb
-    (0, 5), (5, 6), (6, 7), (7, 8),          # index
-    (5, 9), (9, 10), (10, 11), (11, 12),     # middle
-    (9, 13), (13, 14), (14, 15), (15, 16),   # ring
-    (13, 17), (17, 18), (18, 19), (19, 20),  # pinky
-    (0, 17),                                  # palm
+    (0, 1),
+    (1, 2),
+    (2, 3),
+    (3, 4),  # thumb
+    (0, 5),
+    (5, 6),
+    (6, 7),
+    (7, 8),  # index
+    (5, 9),
+    (9, 10),
+    (10, 11),
+    (11, 12),  # middle
+    (9, 13),
+    (13, 14),
+    (14, 15),
+    (15, 16),  # ring
+    (13, 17),
+    (17, 18),
+    (18, 19),
+    (19, 20),  # pinky
+    (0, 17),  # palm
 ]
 
 # Image adjustment slider defaults
@@ -135,23 +211,42 @@ AUDIO_AROUSAL_WINDOW_SECONDS = 1.5
 AUDIO_AROUSAL_QUIET_RMS = 0.02
 AUDIO_AROUSAL_LOUD_RMS = 0.15
 EMOTION_HIGH_AROUSAL_LABELS = {
-    "happy", "happiness", "surprise", "anger", "angry", "fear", "disgust",
+    "happy",
+    "happiness",
+    "surprise",
+    "anger",
+    "angry",
+    "fear",
+    "disgust",
 }
 EMOTION_LOW_AROUSAL_LABELS = {"neutral", "sad", "sadness"}
 
 # Image editing options
-IMAGE_OP_OPTIONS = ["intensity", "enhance", "sharpen", "color_correct", "denoise", "bilateral_filter", "wavelet_denoise"]
+IMAGE_OP_OPTIONS = [
+    "intensity",
+    "enhance",
+    "sharpen",
+    "color_correct",
+    "denoise",
+    "bilateral_filter",
+    "wavelet_denoise",
+]
 INTENSITY_METHODS = ["negative", "log", "gamma", "contrast_stretch"]
 SHARPEN_METHODS = ["laplacian", "high_boost"]
 DENOISE_METHODS = ["gaussian", "median", "nlm"]
 
 # Reference landmarks
 FAIRFACE_LANDMARK_INDICES = (263, 362, 33, 133, 1)
-FAIRFACE_REFERENCE_LANDMARKS = np.array([
-    [0.8595674595992, 0.2134981538014], [0.6460604764104, 0.2289674387677],
-    [0.1205750620789, 0.2137274526848], [0.3340850613712, 0.2290642403242],
-    [0.4901123135679, 0.6277975316475],
-], dtype=np.float64)
+FAIRFACE_REFERENCE_LANDMARKS = np.array(
+    [
+        [0.8595674595992, 0.2134981538014],
+        [0.6460604764104, 0.2289674387677],
+        [0.1205750620789, 0.2137274526848],
+        [0.3340850613712, 0.2290642403242],
+        [0.4901123135679, 0.6277975316475],
+    ],
+    dtype=np.float64,
+)
 
 # Fusion and model combination keys & weights
 FUSED_MODEL_KEY = "fused"
@@ -164,30 +259,66 @@ RACE_MODEL_RELIABILITY = ("fairface", "deepface")
 # Ordered by held-out FairFace accuracy. Not fused: the previous weighted fusion always returned
 # mivolo's hard label, and a learned stacker did no better than mivolo alone on held-out data.
 GENDER_MODEL_RELIABILITY = ("mivolo", "fairface", "deepface", "caffe")
-EMOTION_FUSION_WEIGHTS = {"dan": 3.0, "hsemotion": 3.0, "ferplus": 2.0, "mini_xception": 1.0}
+EMOTION_FUSION_WEIGHTS = {
+    "dan": 3.0,
+    "hsemotion": 3.0,
+    "ferplus": 2.0,
+    "mini_xception": 1.0,
+}
 
 FAIRFACE_AGE_RANGES = [
-    (0, 2), (3, 9), (10, 19), (20, 29), (30, 39),
-    (40, 49), (50, 59), (60, 69), (70, 100),
+    (0, 2),
+    (3, 9),
+    (10, 19),
+    (20, 29),
+    (30, 39),
+    (40, 49),
+    (50, 59),
+    (60, 69),
+    (70, 100),
 ]
 AGE_LIST_RANGES = [
-    (0, 2), (4, 6), (8, 12), (15, 20), (25, 32), (38, 43), (48, 53), (60, 100),
+    (0, 2),
+    (4, 6),
+    (8, 12),
+    (15, 20),
+    (25, 32),
+    (38, 43),
+    (48, 53),
+    (60, 100),
 ]
 
 RACE_CANONICAL_LABELS = {
-    "white": "White", "black": "Black", "asian": "Asian", "indian": "Indian",
-    "latino": "Latino", "middle_eastern": "Middle Eastern",
+    "white": "White",
+    "black": "Black",
+    "asian": "Asian",
+    "indian": "Indian",
+    "latino": "Latino",
+    "middle_eastern": "Middle Eastern",
 }
 RACE_LABEL_TO_CANONICAL = {
-    "white": "white", "black": "black", "indian": "indian",
-    "east asian": "asian", "southeast asian": "asian", "asian": "asian",
-    "latino_hispanic": "latino", "latino hispanic": "latino",
+    "white": "white",
+    "black": "black",
+    "indian": "indian",
+    "east asian": "asian",
+    "southeast asian": "asian",
+    "asian": "asian",
+    "latino_hispanic": "latino",
+    "latino hispanic": "latino",
     "middle eastern": "middle_eastern",
 }
 EMOTION_CANONICAL = {
-    "happy": "happy", "happiness": "happy", "sad": "sad", "sadness": "sad",
-    "angry": "angry", "anger": "angry", "surprise": "surprise", "fear": "fear",
-    "disgust": "disgust", "neutral": "neutral", "contempt": "contempt",
+    "happy": "happy",
+    "happiness": "happy",
+    "sad": "sad",
+    "sadness": "sad",
+    "angry": "angry",
+    "anger": "angry",
+    "surprise": "surprise",
+    "fear": "fear",
+    "disgust": "disgust",
+    "neutral": "neutral",
+    "contempt": "contempt",
 }
 
 # Upload and cache limits

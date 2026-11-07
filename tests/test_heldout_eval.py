@@ -1,4 +1,5 @@
 """Pin the held-out eval's label mappings, sampling, statistics and fusion-weight fitting."""
+
 import importlib.util
 import math
 import os
@@ -23,40 +24,73 @@ _SPEC.loader.exec_module(eval_heldout)
 
 
 def _record(row, race, gender, age, raw, box=(0, 0, 10, 10)):
-    return {"row": row, "truth": {"race": race, "gender": gender, "age": age}, "raw": raw,
-            "box": list(box) if box else None, "error": None, "outputs": {},
-            "fairface_aligned": True}
+    return {
+        "row": row,
+        "truth": {"race": race, "gender": gender, "age": age},
+        "raw": raw,
+        "box": list(box) if box else None,
+        "error": None,
+        "outputs": {},
+        "fairface_aligned": True,
+    }
 
 
 class ImportTests(unittest.TestCase):
     def test_scoring_needs_no_deep_learning_framework(self):
         # A fresh interpreter, since other tests may already have imported torch in this one.
-        probe = ("import importlib.util, sys; spec = importlib.util.spec_from_file_location("
-                 f"'m', {str(_SPEC.origin)!r}); spec.loader.exec_module("
-                 "importlib.util.module_from_spec(spec)); "
-                 "print(sorted({'torch', 'tensorflow'} & set(sys.modules)))")
+        probe = (
+            "import importlib.util, sys; spec = importlib.util.spec_from_file_location("
+            f"'m', {str(_SPEC.origin)!r}); spec.loader.exec_module("
+            "importlib.util.module_from_spec(spec)); "
+            "print(sorted({'torch', 'tensorflow'} & set(sys.modules)))"
+        )
         root = Path(__file__).resolve().parents[1]
-        result = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True,
-                                check=True, cwd=root, env={**os.environ, "PYTHONPATH": str(root / "src")})
+        result = subprocess.run(
+            [sys.executable, "-c", probe],
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=root,
+            env={**os.environ, "PYTHONPATH": str(root / "src")},
+        )
         self.assertEqual(result.stdout.strip(), "[]")
 
 
 class AgeBucketTests(unittest.TestCase):
     def test_continuous_ages_use_the_displayed_integer(self):
-        cases = {0: 0, 2.4: 0, 2.5: 0, 2.6: 1, 9.4: 1, 10: 2, 19.6: 3, 29: 3, 30: 4,
-                 69.4: 7, 70: 8, 105: 8, -1: 0}
+        cases = {
+            0: 0,
+            2.4: 0,
+            2.5: 0,
+            2.6: 1,
+            9.4: 1,
+            10: 2,
+            19.6: 3,
+            29: 3,
+            30: 4,
+            69.4: 7,
+            70: 8,
+            105: 8,
+            -1: 0,
+        }
         for age, bucket in cases.items():
             self.assertEqual(eval_heldout.age_to_bucket(age), bucket, age)
 
     def test_caffe_buckets_map_by_midpoint(self):
-        mapped = [eval_heldout.caffe_to_fairface_bucket(i) for i in range(len(AGE_LIST))]
+        mapped = [
+            eval_heldout.caffe_to_fairface_bucket(i) for i in range(len(AGE_LIST))
+        ]
         # (0-2) (4-6) (8-12) (15-20) (25-32) (38-43) (48-53) (60-100)
         self.assertEqual(mapped, [0, 1, 2, 2, 3, 5, 6, 8])
 
 
 class RaceMappingTests(unittest.TestCase):
     def test_dataset_and_backend_labels_reach_the_six_canonical_classes(self):
-        for labels in (eval_heldout.DATASET_RACES, RACE_LABELS_FAIRFACE, RACE_LABELS_DEEPFACE):
+        for labels in (
+            eval_heldout.DATASET_RACES,
+            RACE_LABELS_FAIRFACE,
+            RACE_LABELS_DEEPFACE,
+        ):
             canonical = {eval_heldout.canonical_race(label) for label in labels}
             self.assertEqual(canonical, set(RACE_CANONICAL_LABELS), labels)
 
@@ -71,9 +105,13 @@ class RaceMappingTests(unittest.TestCase):
         self.assertEqual(eval_heldout.shown_top1("Middle Eastern"), "Middle Eastern")
 
     def test_backend_top1_comes_from_the_backend_label_order(self):
-        raw = {"race_probs/fairface": [0, 0, 0, 0.2, 0.7, 0.1, 0],
-               "race_probs/deepface": [0, 0, 0, 0, 0, 1.0]}
-        self.assertEqual(eval_heldout.race_labels(raw), {"fairface": "asian", "deepface": "latino"})
+        raw = {
+            "race_probs/fairface": [0, 0, 0, 0.2, 0.7, 0.1, 0],
+            "race_probs/deepface": [0, 0, 0, 0, 0, 1.0],
+        }
+        self.assertEqual(
+            eval_heldout.race_labels(raw), {"fairface": "asian", "deepface": "latino"}
+        )
 
 
 class SamplingTests(unittest.TestCase):
@@ -81,7 +119,9 @@ class SamplingTests(unittest.TestCase):
 
     def test_sample_is_proportional_deterministic_and_nested(self):
         sample = eval_heldout.stratified_sample(self.strata, 20, seed=7)
-        self.assertEqual(sample, eval_heldout.stratified_sample(self.strata, 20, seed=7))
+        self.assertEqual(
+            sample, eval_heldout.stratified_sample(self.strata, 20, seed=7)
+        )
         self.assertEqual(len(sample), 20)
         counts = [sum(self.strata[i] == key for i in sample) for key in range(4)]
         self.assertEqual(counts, [5, 5, 5, 5])
@@ -94,17 +134,23 @@ class SamplingTests(unittest.TestCase):
         self.assertEqual(sorted(fit + test), sample)
         self.assertFalse(set(fit) & set(test))
         for key in range(4):
-            self.assertEqual(sum(self.strata[i] == key for i in fit),
-                             sum(self.strata[i] == key for i in test))
+            self.assertEqual(
+                sum(self.strata[i] == key for i in fit),
+                sum(self.strata[i] == key for i in test),
+            )
 
 
 class DetectionTests(unittest.TestCase):
     def test_largest_box_is_ranked_by_in_frame_area(self):
         boxes = [[10, 10, 60, 60], [150, 150, 900, 900], [-5, -5, 30, 30]]
-        self.assertEqual(eval_heldout.largest_in_frame(boxes, 100, 100), [10, 10, 60, 60])
+        self.assertEqual(
+            eval_heldout.largest_in_frame(boxes, 100, 100), [10, 10, 60, 60]
+        )
 
     def test_boxes_wholly_outside_the_frame_are_a_miss(self):
-        self.assertIsNone(eval_heldout.largest_in_frame([[200, 200, 400, 400]], 100, 100))
+        self.assertIsNone(
+            eval_heldout.largest_in_frame([[200, 200, 400, 400]], 100, 100)
+        )
         self.assertIsNone(eval_heldout.largest_in_frame([], 100, 100))
 
 
@@ -113,19 +159,27 @@ class BootstrapTests(unittest.TestCase):
 
     def test_same_seed_gives_the_same_interval(self):
         first = eval_heldout.bootstrap_ci(self.values, n_resamples=500, seed=3)
-        self.assertEqual(first, eval_heldout.bootstrap_ci(self.values, n_resamples=500, seed=3))
-        self.assertNotEqual(first, eval_heldout.bootstrap_ci(self.values, n_resamples=500, seed=4))
+        self.assertEqual(
+            first, eval_heldout.bootstrap_ci(self.values, n_resamples=500, seed=3)
+        )
+        self.assertNotEqual(
+            first, eval_heldout.bootstrap_ci(self.values, n_resamples=500, seed=4)
+        )
         self.assertLess(first[0], 0.7)
         self.assertGreater(first[1], 0.7)
 
     def test_degenerate_inputs(self):
         self.assertEqual(eval_heldout.bootstrap_ci([1, 1, 1], seed=0), (1.0, 1.0))
-        self.assertTrue(all(math.isnan(v) for v in eval_heldout.bootstrap_ci([], seed=0)))
+        self.assertTrue(
+            all(math.isnan(v) for v in eval_heldout.bootstrap_ci([], seed=0))
+        )
 
 
 class FusionWeightTests(unittest.TestCase):
     def test_log_odds_weights(self):
-        weights = eval_heldout.log_odds_weights({"a": 0.9, "b": 0.6, "c": 0.4}, n_classes=2)
+        weights = eval_heldout.log_odds_weights(
+            {"a": 0.9, "b": 0.6, "c": 0.4}, n_classes=2
+        )
         self.assertAlmostEqual(weights["a"], math.log(9), places=3)
         self.assertAlmostEqual(weights["b"], math.log(1.5), places=3)
         self.assertEqual(weights["c"], 0.0)
@@ -135,97 +189,166 @@ class FusionWeightTests(unittest.TestCase):
         self.assertAlmostEqual(weights["a"], math.log(5 * 0.3 / 0.7), places=3)
 
     def test_all_at_chance_falls_back_to_equal_weights(self):
-        self.assertEqual(eval_heldout.log_odds_weights({"a": 0.5, "b": 0.4}, 2), {"a": 1.0, "b": 1.0})
+        self.assertEqual(
+            eval_heldout.log_odds_weights({"a": 0.5, "b": 0.4}, 2), {"a": 1.0, "b": 1.0}
+        )
 
     def test_substitute_weights_change_the_answer_without_touching_previous_ones(self):
-        raw = {"mivolo/face": [30.0, "Male"], "gender_probs/fairface": [0.2, 0.8],
-               "gender_probs/caffe": [0.1, 0.9], "gender_probs/deepface": [0.9, 0.1]}
+        raw = {
+            "mivolo/face": [30.0, "Male"],
+            "gender_probs/fairface": [0.2, 0.8],
+            "gender_probs/caffe": [0.1, 0.9],
+            "gender_probs/deepface": [0.9, 0.1],
+        }
         self.assertEqual(eval_heldout.previous_fused_gender(raw), "Male")
         without_mivolo = {"mivolo": 0.0, "fairface": 1.0, "caffe": 1.0, "deepface": 1.0}
-        self.assertEqual(eval_heldout.previous_fused_gender(raw, without_mivolo), "Female")
-        self.assertIsNone(eval_heldout.previous_fused_gender({"mivolo/face": [30.0, "Male"]}))
-        race_raw = {"race_probs/fairface": [0.9, 0.1, 0, 0, 0, 0, 0],
-                    "race_probs/deepface": [0, 0, 1.0, 0, 0, 0]}
+        self.assertEqual(
+            eval_heldout.previous_fused_gender(raw, without_mivolo), "Female"
+        )
+        self.assertIsNone(
+            eval_heldout.previous_fused_gender({"mivolo/face": [30.0, "Male"]})
+        )
+        race_raw = {
+            "race_probs/fairface": [0.9, 0.1, 0, 0, 0, 0, 0],
+            "race_probs/deepface": [0, 0, 1.0, 0, 0, 0],
+        }
         self.assertEqual(eval_heldout.previous_fused_race(race_raw), "black")
-        self.assertEqual(eval_heldout.previous_fused_race(race_raw, {"fairface": 3.0, "deepface": 1.0}),
-                         "white")
-        for index, key in enumerate(["asian", "indian", "black", "white", "middle_eastern", "latino"]):
-            deepface_only = {"race_probs/fairface": [1 / 7] * 7,
-                             "race_probs/deepface": [float(i == index) for i in range(6)]}
+        self.assertEqual(
+            eval_heldout.previous_fused_race(
+                race_raw, {"fairface": 3.0, "deepface": 1.0}
+            ),
+            "white",
+        )
+        for index, key in enumerate(
+            ["asian", "indian", "black", "white", "middle_eastern", "latino"]
+        ):
+            deepface_only = {
+                "race_probs/fairface": [1 / 7] * 7,
+                "race_probs/deepface": [float(i == index) for i in range(6)],
+            }
             self.assertEqual(eval_heldout.previous_fused_race(deepface_only), key)
-        self.assertEqual(eval_heldout.PREVIOUS_GENDER_FUSION_WEIGHTS,
-                         {"mivolo": 3.0, "fairface": 2.0, "caffe": 0.5, "deepface": 0.5})
-        self.assertEqual(eval_heldout.PREVIOUS_RACE_FUSION_WEIGHTS, {"fairface": 1.0, "deepface": 1.0})
+        self.assertEqual(
+            eval_heldout.PREVIOUS_GENDER_FUSION_WEIGHTS,
+            {"mivolo": 3.0, "fairface": 2.0, "caffe": 0.5, "deepface": 0.5},
+        )
+        self.assertEqual(
+            eval_heldout.PREVIOUS_RACE_FUSION_WEIGHTS,
+            {"fairface": 1.0, "deepface": 1.0},
+        )
 
     def test_previous_fusion_label_keeps_the_close_runner_up(self):
-        raw = {"race_probs/fairface": [0.52, 0.48, 0, 0, 0, 0, 0],
-               "race_probs/deepface": [0, 0, 0.5, 0.5, 0, 0]}
-        self.assertEqual(eval_heldout.previous_fused_race_label(raw), "White (51%)/Black (49%)")
-        self.assertIsNone(eval_heldout.previous_fused_race_label({"race_probs/fairface": [1, 0, 0, 0, 0, 0, 0]}))
+        raw = {
+            "race_probs/fairface": [0.52, 0.48, 0, 0, 0, 0, 0],
+            "race_probs/deepface": [0, 0, 0.5, 0.5, 0, 0],
+        }
+        self.assertEqual(
+            eval_heldout.previous_fused_race_label(raw), "White (51%)/Black (49%)"
+        )
+        self.assertIsNone(
+            eval_heldout.previous_fused_race_label(
+                {"race_probs/fairface": [1, 0, 0, 0, 0, 0, 0]}
+            )
+        )
 
 
 class BestGenderTests(unittest.TestCase):
     def test_headline_gender_is_mivolo_even_when_every_other_backend_disagrees(self):
-        raw = {"mivolo/face": [30.0, "Female"], "gender_probs/fairface": [0.9, 0.1],
-               "gender_probs/caffe": [0.9, 0.1], "gender_probs/deepface": [0.1, 0.9]}
+        raw = {
+            "mivolo/face": [30.0, "Female"],
+            "gender_probs/fairface": [0.9, 0.1],
+            "gender_probs/caffe": [0.9, 0.1],
+            "gender_probs/deepface": [0.1, 0.9],
+        }
         self.assertEqual(eval_heldout.best_gender(raw), ("Female", "mivolo"))
         self.assertEqual(eval_heldout.previous_fused_gender(raw), "Female")
 
     def test_one_backend_gives_no_headline(self):
-        self.assertIsNone(eval_heldout.best_gender({"gender_probs/fairface": [0.9, 0.1]}))
+        self.assertIsNone(
+            eval_heldout.best_gender({"gender_probs/fairface": [0.9, 0.1]})
+        )
 
 
 class BestRaceTests(unittest.TestCase):
     def test_headline_race_is_fairface_top1_when_both_backends_answer(self):
-        raw = {"race_probs/fairface": [0.1, 0, 0, 0.5, 0.4, 0, 0],
-               "race_probs/deepface": [0, 0, 1.0, 0, 0, 0]}
+        raw = {
+            "race_probs/fairface": [0.1, 0, 0, 0.5, 0.4, 0, 0],
+            "race_probs/deepface": [0, 0, 1.0, 0, 0, 0],
+        }
         self.assertEqual(eval_heldout.best_race(raw), ("asian", "fairface"))
 
     def test_one_backend_gives_no_headline(self):
-        self.assertIsNone(eval_heldout.best_race({"race_probs/deepface": [0, 0, 1.0, 0, 0, 0]}))
+        self.assertIsNone(
+            eval_heldout.best_race({"race_probs/deepface": [0, 0, 1.0, 0, 0, 0]})
+        )
 
 
 class ScoreTests(unittest.TestCase):
     def test_score_counts_misses_and_fits_on_the_fit_half_only(self):
         white, black = 3, 2  # dataset race indices
-        good = {"gender_probs/fairface": [0.9, 0.1], "gender_probs/caffe": [0.2, 0.8],
-                "race_probs/fairface": [0.9, 0.1, 0, 0, 0, 0, 0],
-                "race_probs/deepface": [0, 0, 1.0, 0, 0, 0],
-                "age_probs/fairface": [0, 0, 0, 1.0, 0, 0, 0, 0, 0],
-                "mivolo/face": [34.0, "Male"]}
+        good = {
+            "gender_probs/fairface": [0.9, 0.1],
+            "gender_probs/caffe": [0.2, 0.8],
+            "race_probs/fairface": [0.9, 0.1, 0, 0, 0, 0, 0],
+            "race_probs/deepface": [0, 0, 1.0, 0, 0, 0],
+            "age_probs/fairface": [0, 0, 0, 1.0, 0, 0, 0, 0, 0],
+            "mivolo/face": [34.0, "Male"],
+        }
         # The fit rows give different outputs from the test rows, so weights fitted on the test
         # rows would differ from the ones asserted below.
-        fit_good = {**good, "gender_probs/caffe": [0.9, 0.1],
-                    "race_probs/deepface": [0, 0, 0.4, 0.6, 0, 0]}
-        records = [_record(row, white, 0, 3, fit_good if row < 2 else good) for row in range(4)]
+        fit_good = {
+            **good,
+            "gender_probs/caffe": [0.9, 0.1],
+            "race_probs/deepface": [0, 0, 0.4, 0.6, 0, 0],
+        }
+        records = [
+            _record(row, white, 0, 3, fit_good if row < 2 else good) for row in range(4)
+        ]
         records.append(_record(4, black, 1, 4, {}, box=None))
-        report = eval_heldout.score(records, fit_rows=[0, 1], test_rows=[2, 3, 4], seed=0,
-                                    n_resamples=200)
-        self.assertAlmostEqual(report["detection_recall"]["test"]["value"], 2 / 3, places=4)
+        report = eval_heldout.score(
+            records, fit_rows=[0, 1], test_rows=[2, 3, 4], seed=0, n_resamples=200
+        )
+        self.assertAlmostEqual(
+            report["detection_recall"]["test"]["value"], 2 / 3, places=4
+        )
         self.assertEqual(report["gender"]["backends"]["fairface"]["value"], 1.0)
         self.assertEqual(report["gender"]["backends"]["caffe"]["value"], 0.0)
         self.assertEqual(report["race"]["backends"]["deepface"]["value"], 0.0)
-        self.assertEqual(report["age"]["backends"]["mivolo"]["mean_bucket_offset"]["value"], 1.0)
+        self.assertEqual(
+            report["age"]["backends"]["mivolo"]["mean_bucket_offset"]["value"], 1.0
+        )
         self.assertEqual(report["age"]["best_shipped"]["chosen_backend"]["mivolo"], 2)
         self.assertGreater(report["fusion"]["gender"]["fitted_weights"]["caffe"], 0.0)
         self.assertEqual(report["fusion"]["gender"]["fit_half_accuracy"]["caffe"], 1.0)
-        self.assertEqual(report["fusion"]["race"]["fit_half_accuracy"], {"fairface": 1.0, "deepface": 1.0})
+        self.assertEqual(
+            report["fusion"]["race"]["fit_half_accuracy"],
+            {"fairface": 1.0, "deepface": 1.0},
+        )
         # Test rows: fairface says White (right); deepface says Black with probability 1, which
         # the equal blend follows.
         self.assertEqual(report["race"]["best_shipped"]["value"], 1.0)
-        self.assertEqual(report["race"]["best_shipped"]["chosen_backend"], {"fairface": 2, "deepface": 0})
+        self.assertEqual(
+            report["race"]["best_shipped"]["chosen_backend"],
+            {"fairface": 2, "deepface": 0},
+        )
         self.assertEqual(report["race"]["fused_previous"]["value"], 0.0)
         self.assertEqual(report["race"]["best_minus_fused_previous"]["value"], 1.0)
-        self.assertEqual(report["race"]["per_class_recall"]["white"]["best_shipped"], 1.0)
+        self.assertEqual(
+            report["race"]["per_class_recall"]["white"]["best_shipped"], 1.0
+        )
         # Gender: mivolo (right) heads every test row, and the previous fusion followed it.
         self.assertEqual(report["gender"]["best_shipped"]["value"], 1.0)
-        self.assertEqual(report["gender"]["best_shipped"]["chosen_backend"]["mivolo"], 2)
+        self.assertEqual(
+            report["gender"]["best_shipped"]["chosen_backend"]["mivolo"], 2
+        )
         self.assertEqual(report["gender"]["best_minus_fused_previous"]["value"], 0.0)
 
 
 class ExtraAgeTests(unittest.TestCase):
     def test_bucket_backends_answer_by_argmax_and_rank_after_shipped_ones(self):
-        raw = {"age_probs/convnext": [0, 0, 0, 0, 0.1, 0.9, 0, 0, 0], "mivolo/face": [34.0, "Male"]}
+        raw = {
+            "age_probs/convnext": [0, 0, 0, 0, 0.1, 0.9, 0, 0, 0],
+            "mivolo/face": [34.0, "Male"],
+        }
         self.assertEqual(eval_heldout.age_buckets(raw), {"convnext": 5, "mivolo": 4})
         self.assertEqual(eval_heldout.age_estimates(raw)["convnext"], 44.5)
 
@@ -235,35 +358,68 @@ class ExtraAgeTests(unittest.TestCase):
 
         records = [_record(0, 3, 0, 3, {}), _record(1, 3, 0, 4, {})]
         with tempfile.TemporaryDirectory() as tmp:
-            lines = [{"row": 0, "box": [0, 0, 10, 10], "fairface_aligned": True,
-                      "raw": {"age_probs/convnext": [1.0] + [0.0] * 8}},
-                     {"row": 1, "box": [1, 0, 10, 10], "fairface_aligned": True,
-                      "raw": {"age_probs/convnext": [0.0] * 8 + [1.0]}}]
-            Path(tmp, "extra_age_convnext.jsonl").write_text("\n".join(json.dumps(x) for x in lines))
+            lines = [
+                {
+                    "row": 0,
+                    "box": [0, 0, 10, 10],
+                    "fairface_aligned": True,
+                    "raw": {"age_probs/convnext": [1.0] + [0.0] * 8},
+                },
+                {
+                    "row": 1,
+                    "box": [1, 0, 10, 10],
+                    "fairface_aligned": True,
+                    "raw": {"age_probs/convnext": [0.0] * 8 + [1.0]},
+                },
+            ]
+            Path(tmp, "extra_age_convnext.jsonl").write_text(
+                "\n".join(json.dumps(x) for x in lines)
+            )
             mismatches = eval_heldout.merge_extra_age(records, Path(tmp), ["convnext"])
         self.assertEqual(mismatches, {"convnext": 1})
         self.assertEqual(eval_heldout.age_buckets(records[1]["raw"])["convnext"], 8)
 
     def test_paired_difference_against_mivolo(self):
-        raw_right = {"age_probs/convnext": [0, 0, 0, 1.0, 0, 0, 0, 0, 0], "mivolo/face": [45.0, "Male"],
-                     "age_probs/fairface": [0, 0, 0, 0, 0, 1.0, 0, 0, 0]}
+        raw_right = {
+            "age_probs/convnext": [0, 0, 0, 1.0, 0, 0, 0, 0, 0],
+            "mivolo/face": [45.0, "Male"],
+            "age_probs/fairface": [0, 0, 0, 0, 0, 1.0, 0, 0, 0],
+        }
         records = [_record(row, 3, 0, 3, dict(raw_right)) for row in range(4)]
-        report = eval_heldout.score(records, fit_rows=[0, 1], test_rows=[2, 3], seed=0, n_resamples=50,
-                                    extra_age=["convnext"])
-        self.assertEqual(report["age"]["minus_mivolo"]["convnext"]["bucket_accuracy"]["value"], 1.0)
+        report = eval_heldout.score(
+            records,
+            fit_rows=[0, 1],
+            test_rows=[2, 3],
+            seed=0,
+            n_resamples=50,
+            extra_age=["convnext"],
+        )
+        self.assertEqual(
+            report["age"]["minus_mivolo"]["convnext"]["bucket_accuracy"]["value"], 1.0
+        )
         # Extra models never reach select_age, so the headline stays the app's (mivolo's).
         self.assertEqual(report["age"]["best_shipped"]["chosen_backend"]["mivolo"], 2)
         self.assertEqual(report["age"]["best_shipped"]["chosen_backend"]["convnext"], 0)
 
     def test_extra_model_cannot_supply_the_second_estimate_a_headline_needs(self):
-        raw = {"age_probs/convnext": [0, 0, 0, 1.0, 0, 0, 0, 0, 0],
-               "age_probs/fairface": [0, 0, 0, 1.0, 0, 0, 0, 0, 0]}
+        raw = {
+            "age_probs/convnext": [0, 0, 0, 1.0, 0, 0, 0, 0, 0],
+            "age_probs/fairface": [0, 0, 0, 1.0, 0, 0, 0, 0, 0],
+        }
         self.assertIsNone(eval_heldout.best_age_bucket(raw, ["convnext"]))
         records = [_record(row, 3, 0, 3, dict(raw)) for row in range(4)]
-        report = eval_heldout.score(records, fit_rows=[0, 1], test_rows=[2, 3], seed=0, n_resamples=50,
-                                    extra_age=["convnext"])
+        report = eval_heldout.score(
+            records,
+            fit_rows=[0, 1],
+            test_rows=[2, 3],
+            seed=0,
+            n_resamples=50,
+            extra_age=["convnext"],
+        )
         self.assertEqual(report["age"]["best_shipped"]["bucket_accuracy"]["value"], 0.0)
-        self.assertEqual(sum(report["age"]["best_shipped"]["chosen_backend"].values()), 0)
+        self.assertEqual(
+            sum(report["age"]["best_shipped"]["chosen_backend"].values()), 0
+        )
         self.assertEqual(report["cache_vs_display_mismatches"]["best_age"], 0)
 
 
@@ -278,7 +434,11 @@ class RunInferenceFlagTests(unittest.TestCase):
         from face_analyzer import inference
 
         self.inference = inference
-        names = [*eval_heldout.UNUSED_FEATURE_ENV, "FACE_LANDMARKS_MODEL", "FACE_ANALYZER_ORT_THREADS"]
+        names = [
+            *eval_heldout.UNUSED_FEATURE_ENV,
+            "FACE_LANDMARKS_MODEL",
+            "FACE_ANALYZER_ORT_THREADS",
+        ]
         saved = {name: os.environ.get(name) for name in names}
         for name in names:
             os.environ[name] = "set"
@@ -314,24 +474,56 @@ class RunInferenceFlagTests(unittest.TestCase):
         pyarrow.parquet.read_table.side_effect = ParquetReached
         with ExitStack() as stack:
             cache = Path(stack.enter_context(tempfile.TemporaryDirectory()))
-            stack.enter_context(patch.dict(sys.modules, {
-                "pyarrow": pyarrow, "pyarrow.parquet": pyarrow.parquet, "torch": None}))
-            stack.enter_context(patch.object(self.inference, "load_models", load_models))
+            stack.enter_context(
+                patch.dict(
+                    sys.modules,
+                    {
+                        "pyarrow": pyarrow,
+                        "pyarrow.parquet": pyarrow.parquet,
+                        "torch": None,
+                    },
+                )
+            )
+            stack.enter_context(
+                patch.object(self.inference, "load_models", load_models)
+            )
             # _instrument rebinds these pipeline hooks; restore them for the other tests.
-            for module, name in ((stages, "_cached_face_predict"), (face_tasks, "_cached_face_predict"),
-                                 (analyzer, "_detect"), (stages, "fairface_landmarks_from_mediapipe"),
-                                 (stages, "fairface_landmarks_from_detector")):
+            for module, name in (
+                (stages, "_cached_face_predict"),
+                (face_tasks, "_cached_face_predict"),
+                (analyzer, "_detect"),
+                (stages, "fairface_landmarks_from_mediapipe"),
+                (stages, "fairface_landmarks_from_detector"),
+            ):
                 stack.enter_context(patch.object(module, name, getattr(module, name)))
-            eval_heldout.run_inference([0], {"race": [0], "path": ["0.jpg"]}, cache / "none.parquet",
-                                       cache, set(), 0.5, 0, detector, mediapipe)
+            eval_heldout.run_inference(
+                [0],
+                {"race": [0], "path": ["0.jpg"]},
+                cache / "none.parquet",
+                cache,
+                set(),
+                0.5,
+                0,
+                detector,
+                mediapipe,
+            )
 
     def _loaded(self, detector, landmarks=False):
         """A Models stub with one detector and, optionally, the MediaPipe face landmarker."""
-        slot = {"ssd": "face_net", "yolo": "yolo_face_nets", "scrfd": "scrfd_face_nets",
-                "retinaface": "retinaface_nets"}[detector]
+        slot = {
+            "ssd": "face_net",
+            "yolo": "yolo_face_nets",
+            "scrfd": "scrfd_face_nets",
+            "retinaface": "retinaface_nets",
+        }[detector]
         net = object() if detector == "ssd" else {detector: object()}
-        return self.inference.Models(**{"face_net": None, slot: net,
-                                        "face_landmarks_nets": {"mediapipe": object()} if landmarks else {}})
+        return self.inference.Models(
+            **{
+                "face_net": None,
+                slot: net,
+                "face_landmarks_nets": {"mediapipe": object()} if landmarks else {},
+            }
+        )
 
     def test_keeps_the_selected_detector_and_blanks_the_others(self):
         # A Models stub without the requested detector stops the run right after loading.
@@ -346,7 +538,9 @@ class RunInferenceFlagTests(unittest.TestCase):
         for mediapipe, expected in ((False, ""), (True, "set")):
             os.environ["FACE_LANDMARKS_MODEL"] = "set"
             with self.subTest(mediapipe=mediapipe), self.assertRaises(SystemExit):
-                self._run(self._loaded("ssd"), detector="retinaface", mediapipe=mediapipe)
+                self._run(
+                    self._loaded("ssd"), detector="retinaface", mediapipe=mediapipe
+                )
             self.assertEqual(self.seen_env["FACE_LANDMARKS_MODEL"], expected)
 
     def test_exits_when_the_requested_detector_is_not_loaded(self):
@@ -355,13 +549,19 @@ class RunInferenceFlagTests(unittest.TestCase):
 
     def test_a_loaded_detector_without_mediapipe_runs_past_the_guards(self):
         with self.assertRaises(ParquetReached):
-            self._run(self._loaded("retinaface"), detector="retinaface", mediapipe=False)
+            self._run(
+                self._loaded("retinaface"), detector="retinaface", mediapipe=False
+            )
         self.assertEqual(self.seen_env["RETINAFACE_MODEL"], "set")
         self.assertEqual(self.seen_env["FACE_LANDMARKS_MODEL"], "")
 
     def test_exits_when_mediapipe_loads_despite_no_mediapipe(self):
         with self.assertRaisesRegex(SystemExit, "MediaPipe face landmarker loaded"):
-            self._run(self._loaded("retinaface", landmarks=True), detector="retinaface", mediapipe=False)
+            self._run(
+                self._loaded("retinaface", landmarks=True),
+                detector="retinaface",
+                mediapipe=False,
+            )
 
 
 if __name__ == "__main__":

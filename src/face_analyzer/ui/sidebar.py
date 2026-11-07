@@ -1,4 +1,5 @@
 """Sidebar controls: model selection, gallery, identity search, and the control panel."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -38,7 +39,9 @@ def display_model_name(model_key: str) -> str:
     return MODEL_DISPLAY_NAMES.get(model_key, model_key.replace("_", " ").title())
 
 
-def _model_checkboxes(label: str, nets: dict, container=None, help: str | None = None) -> set:
+def _model_checkboxes(
+    label: str, nets: dict, container=None, help: str | None = None
+) -> set:
     """Render one checkbox per loaded model for a feature.
 
     Returns the set of model keys selected by the user.
@@ -51,12 +54,16 @@ def _model_checkboxes(label: str, nets: dict, container=None, help: str | None =
     if help:
         container.caption(help)
     for key in nets:
-        if container.checkbox(display_model_name(key), value=True, key=f"chk_{label}_{key}"):
+        if container.checkbox(
+            display_model_name(key), value=True, key=f"chk_{label}_{key}"
+        ):
             active.add(key)
     return active
 
 
-def _landmark_enable_button(label: str, nets: dict, state_key: str, container=None, help: str | None = None) -> set:
+def _landmark_enable_button(
+    label: str, nets: dict, state_key: str, container=None, help: str | None = None
+) -> set:
     """Render a single ENABLE/DISABLE toggle button for a landmark family.
 
     Returns the set of loaded model keys if enabled, else empty set.
@@ -103,11 +110,16 @@ class SidebarState:
         """Build the pipeline config from these selections plus per-call extras (gallery, trackers, ...)."""
         return inference.AnalysisConfig(
             conf_threshold=self.conf_threshold,
-            active_age=self.active_age, active_gender=self.active_gender, active_emotion=self.active_emotion,
-            active_race=self.active_race, active_recognition=self.active_recognition,
-            active_glasses=self.active_glasses, active_mask=self.active_mask,
+            active_age=self.active_age,
+            active_gender=self.active_gender,
+            active_emotion=self.active_emotion,
+            active_race=self.active_race,
+            active_recognition=self.active_recognition,
+            active_glasses=self.active_glasses,
+            active_mask=self.active_mask,
             active_eye_color=self.active_eye_color,
-            active_face_landmarks=self.active_face_landmarks, active_hands=self.active_hands,
+            active_face_landmarks=self.active_face_landmarks,
+            active_hands=self.active_hands,
             active_gaze=self.active_gaze,
             face_detector=self.face_detector,
             active_liveness=self.active_liveness,
@@ -135,17 +147,24 @@ def render_sidebar(models: Any) -> SidebarState:
     if models.offline_features:
         reason = (
             "Not part of the public demo; run the app locally for every feature."
-            if demo else "Model file or dependency missing."
+            if demo
+            else "Model file or dependency missing."
         )
-        st.sidebar.caption(f"Unavailable: {', '.join(map(feature_label, models.offline_features))}. {reason}")
+        st.sidebar.caption(
+            f"Unavailable: {', '.join(map(feature_label, models.offline_features))}. {reason}"
+        )
 
     with st.sidebar.expander("Detection", expanded=True):
         preferred = DEMO_FACE_DETECTOR if demo else "yolo"
-        active_face_detector = inference.resolve_face_detector(models, preferred) or "ssd"
+        active_face_detector = (
+            inference.resolve_face_detector(models, preferred) or "ssd"
+        )
         _face_detector_options = inference.available_face_detectors(models)
         if len(_face_detector_options) > 1:
             active_face_detector = st.selectbox(
-                "Face detector", _face_detector_options, index=_face_detector_options.index(active_face_detector),
+                "Face detector",
+                _face_detector_options,
+                index=_face_detector_options.index(active_face_detector),
                 format_func=display_model_name,
                 help="One detector runs per frame. YOLO is preferred when loaded; SSD is the fallback when present.",
             )
@@ -153,32 +172,86 @@ def render_sidebar(models: Any) -> SidebarState:
             st.caption(f"Face detector: {display_model_name(active_face_detector)}")
 
     with st.sidebar.expander("Classification", expanded=True):
-        active_age = _model_checkboxes("AGE", models.age_nets, st, help="Estimated age per detected face.")
-        active_gender = _model_checkboxes("GENDER", models.gender_nets, st, help="Estimated gender label per detected face.")
-        active_race = _model_checkboxes("RACE", models.race_nets, st, help="Estimated race or ethnicity label per detected face.")
-        active_emotion = _model_checkboxes("EMOTION", models.emotion_nets, st, help="Estimated facial expression across seven categories.")
-        active_glasses = _model_checkboxes("GLASSES", models.glasses_nets, st, help="Detects whether the face appears to wear glasses.")
-        active_mask = _model_checkboxes("MASK", models.mask_nets, st, help="Detects whether the face appears to wear a mask.")
-        active_eye_color = _model_checkboxes("EYE COLOR", models.eye_color_nets, st, help="Estimates dominant eye color.")
+        active_age = _model_checkboxes(
+            "AGE", models.age_nets, st, help="Estimated age per detected face."
+        )
+        active_gender = _model_checkboxes(
+            "GENDER",
+            models.gender_nets,
+            st,
+            help="Estimated gender label per detected face.",
+        )
+        active_race = _model_checkboxes(
+            "RACE",
+            models.race_nets,
+            st,
+            help="Estimated race or ethnicity label per detected face.",
+        )
+        active_emotion = _model_checkboxes(
+            "EMOTION",
+            models.emotion_nets,
+            st,
+            help="Estimated facial expression across seven categories.",
+        )
+        active_glasses = _model_checkboxes(
+            "GLASSES",
+            models.glasses_nets,
+            st,
+            help="Detects whether the face appears to wear glasses.",
+        )
+        active_mask = _model_checkboxes(
+            "MASK",
+            models.mask_nets,
+            st,
+            help="Detects whether the face appears to wear a mask.",
+        )
+        active_eye_color = _model_checkboxes(
+            "EYE COLOR", models.eye_color_nets, st, help="Estimates dominant eye color."
+        )
 
     with st.sidebar.expander("Identity and biometrics", expanded=False):
-        active_recognition = _model_checkboxes("RECOGNITION", models.recognition_nets, st, help="Matches faces against saved gallery and local reference photos.")
-        active_liveness = _model_checkboxes("LIVENESS", models.liveness_nets, st, help="Uses blink history to flag possible still-photo spoofing.")
+        active_recognition = _model_checkboxes(
+            "RECOGNITION",
+            models.recognition_nets,
+            st,
+            help="Matches faces against saved gallery and local reference photos.",
+        )
+        active_liveness = _model_checkboxes(
+            "LIVENESS",
+            models.liveness_nets,
+            st,
+            help="Uses blink history to flag possible still-photo spoofing.",
+        )
         if models.liveness_nets:
-            st.caption("Liveness runs in live webcam mode. A single image has no blink history.")
-        active_gaze = _model_checkboxes("GAZE", models.gaze_nets, st, help="Estimates gaze direction per detected face.")
+            st.caption(
+                "Liveness runs in live webcam mode. A single image has no blink history."
+            )
+        active_gaze = _model_checkboxes(
+            "GAZE",
+            models.gaze_nets,
+            st,
+            help="Estimates gaze direction per detected face.",
+        )
 
     with st.sidebar.expander("Landmarks and experimental", expanded=False):
         active_colorization = _model_checkboxes(
-            "AUTO-COLORIZE B&W", models.colorization_nets, st,
+            "AUTO-COLORIZE B&W",
+            models.colorization_nets,
+            st,
             help="Converts detected grayscale source images to color before face detection runs.",
         )
         active_face_landmarks = _landmark_enable_button(
-            "Face landmarks", models.face_landmarks_nets, "face_landmarks_enabled", st,
+            "Face landmarks",
+            models.face_landmarks_nets,
+            "face_landmarks_enabled",
+            st,
             help="Overlays facial mesh/keypoints on each detected face.",
         )
         active_hands = _landmark_enable_button(
-            "Hand landmarks", models.hand_nets, "hand_landmarks_enabled", st,
+            "Hand landmarks",
+            models.hand_nets,
+            "hand_landmarks_enabled",
+            st,
             help="Overlays hand keypoints on the whole frame, independent of face detection.",
         )
 
@@ -202,7 +275,9 @@ def render_sidebar(models: Any) -> SidebarState:
         st.sidebar.markdown("### Identity search")
         st.sidebar.caption("Matches local directories only. No live internet search.")
         custom_search_dir = st.sidebar.text_input(
-            "Search directory (optional)", value="", placeholder="/path/to/reference/photos",
+            "Search directory (optional)",
+            value="",
+            placeholder="/path/to/reference/photos",
             help="Extra directory of named reference photos to search, in addition to the bundled known_people/.",
         )
 
@@ -210,19 +285,31 @@ def render_sidebar(models: Any) -> SidebarState:
         def _load_known_people_gallery():
             """Embed the bundled known_people/ reference photos once per process."""
             net = models.recognition_nets.get("vggface")
-            return inference.build_gallery_from_directory(models.face_net, net, inference.KNOWN_PEOPLE_DIR) if net else {}
+            return (
+                inference.build_gallery_from_directory(
+                    models.face_net, net, inference.KNOWN_PEOPLE_DIR
+                )
+                if net
+                else {}
+            )
 
         search_gallery = dict(_load_known_people_gallery())
         if custom_search_dir:
             net = models.recognition_nets.get("vggface")
             if net is not None:
-                search_gallery.update(inference.build_gallery_from_directory(models.face_net, net, custom_search_dir))
+                search_gallery.update(
+                    inference.build_gallery_from_directory(
+                        models.face_net, net, custom_search_dir
+                    )
+                )
 
     # Sidebar interface controls
     st.sidebar.markdown("### Control panel")
     conf_threshold = st.sidebar.slider("Confidence threshold", 0.1, 1.0, 0.7)
 
-    enable_crowd_count = st.sidebar.checkbox("Aggregate demographic summary", value=False, key="crowd_count_enabled")
+    enable_crowd_count = st.sidebar.checkbox(
+        "Aggregate demographic summary", value=False, key="crowd_count_enabled"
+    )
     if enable_crowd_count:
         st.sidebar.caption(
             "Aggregates age/gender/race across every face detected in an image into a total count "
@@ -231,11 +318,21 @@ def render_sidebar(models: Any) -> SidebarState:
         )
 
     return SidebarState(
-        conf_threshold=conf_threshold, face_detector=active_face_detector,
-        active_age=active_age, active_gender=active_gender, active_race=active_race,
-        active_emotion=active_emotion, active_glasses=active_glasses, active_mask=active_mask,
+        conf_threshold=conf_threshold,
+        face_detector=active_face_detector,
+        active_age=active_age,
+        active_gender=active_gender,
+        active_race=active_race,
+        active_emotion=active_emotion,
+        active_glasses=active_glasses,
+        active_mask=active_mask,
         active_eye_color=active_eye_color,
-        active_recognition=active_recognition, active_liveness=active_liveness, active_gaze=active_gaze,
-        active_colorization=active_colorization, active_face_landmarks=active_face_landmarks,
-        active_hands=active_hands, search_gallery=search_gallery, enable_crowd_count=enable_crowd_count,
+        active_recognition=active_recognition,
+        active_liveness=active_liveness,
+        active_gaze=active_gaze,
+        active_colorization=active_colorization,
+        active_face_landmarks=active_face_landmarks,
+        active_hands=active_hands,
+        search_gallery=search_gallery,
+        enable_crowd_count=enable_crowd_count,
     )

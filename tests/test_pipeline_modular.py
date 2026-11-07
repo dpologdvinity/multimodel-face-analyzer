@@ -1,4 +1,5 @@
 """Unit tests for the modular pipeline subpackage (src/face_analyzer/pipeline)."""
+
 import inspect
 import unittest
 from types import SimpleNamespace
@@ -155,14 +156,19 @@ class TestAnalyzeFrameModular(unittest.TestCase):
 
     def test_signature_is_models_frame_config(self):
         """Verify analyze_frame takes exactly the models, the frame and one config."""
-        self.assertEqual(list(inspect.signature(analyze_frame).parameters), ["models", "frame", "config"])
+        self.assertEqual(
+            list(inspect.signature(analyze_frame).parameters),
+            ["models", "frame", "config"],
+        )
 
     def test_analyze_frame_empty_no_faces(self):
         """Verify analyze_frame returns empty face list when no faces detected."""
         frame = np.zeros((100, 100, 3), dtype=np.uint8)
         models = Models(face_net=MagicMock())
         with patch("face_analyzer.pipeline.stages.detect_faces", return_value=[]):
-            annotated, faces, has_faces, hands = analyze_frame(models, frame, AnalysisConfig())
+            annotated, faces, has_faces, hands = analyze_frame(
+                models, frame, AnalysisConfig()
+            )
             self.assertEqual(len(faces), 0)
             self.assertFalse(has_faces)
             self.assertFalse(hands)
@@ -173,7 +179,9 @@ class TestAnalyzeFrameModular(unittest.TestCase):
         frame = np.zeros((100, 100, 3), dtype=np.uint8)
         models = Models(face_net=MagicMock())
         config = AnalysisConfig(conf_threshold=0.6, face_detector="ssd")
-        with patch("face_analyzer.pipeline.stages.detect_faces", return_value=[]) as detect:
+        with patch(
+            "face_analyzer.pipeline.stages.detect_faces", return_value=[]
+        ) as detect:
             analyze_frame(models, frame, config)
         self.assertEqual(detect.call_args.args[-1], 0.6)
 
@@ -186,8 +194,12 @@ class TestFaceBoxColour(unittest.TestCase):
     def _draw(self, config):
         """Analyze a flat grey frame with one stubbed detection and return the annotated frame."""
         frame = np.full((300, 300, 3), 90, np.uint8)
-        with patch("face_analyzer.pipeline.stages.detect_faces", return_value=[self.BOX]):
-            annotated, faces, has_faces, _ = analyze_frame(Models(face_net=MagicMock()), frame, config)
+        with patch(
+            "face_analyzer.pipeline.stages.detect_faces", return_value=[self.BOX]
+        ):
+            annotated, faces, has_faces, _ = analyze_frame(
+                Models(face_net=MagicMock()), frame, config
+            )
         self.assertTrue(has_faces)
         self.assertEqual(len(faces), 1)
         return annotated
@@ -202,7 +214,9 @@ class TestFaceBoxColour(unittest.TestCase):
 
     def test_configured_box_and_outline_colours_are_drawn(self):
         """Draw the box in box_color with a box_outline rim just outside it."""
-        annotated = self._draw(AnalysisConfig(box_color=(10, 20, 30), box_outline=(250, 240, 230)))
+        annotated = self._draw(
+            AnalysisConfig(box_color=(10, 20, 30), box_outline=(250, 240, 230))
+        )
         x1, y1, x2, _ = self.BOX
         self.assertEqual(tuple(annotated[160, x1]), (10, 20, 30))
         self.assertEqual(tuple(annotated[y1, (x1 + x2) // 2]), (10, 20, 30))
@@ -215,24 +229,57 @@ class TestRaceHeadline(unittest.TestCase):
     def test_race_headline_names_fairface_with_both_backends(self):
         """Name fairface as the race headline when both race backends answer."""
         # The golden test runs only fairface for race, so it never produces a race headline.
-        probs = {"fairface": np.array([.8, .1, .02, .02, .02, .02, .02]),
-                 "deepface": np.array([0, 0, 1.0, 0, 0, 0])}
+        probs = {
+            "fairface": np.array([0.8, 0.1, 0.02, 0.02, 0.02, 0.02, 0.02]),
+            "deepface": np.array([0, 0, 1.0, 0, 0, 0]),
+        }
         face = np.zeros((8, 8, 3), np.uint8)
-        inputs = SimpleNamespace(face=face, crop_frame=face, crop_box=(0, 0, 8, 8),
-                                 fairface_landmarks=None, box=(0, 0, 8, 8), track_id=None)
+        inputs = SimpleNamespace(
+            face=face,
+            crop_frame=face,
+            crop_box=(0, 0, 8, 8),
+            fairface_landmarks=None,
+            box=(0, 0, 8, 8),
+            track_id=None,
+        )
         models = SimpleNamespace(race_nets={"deepface": object(), "fairface": object()})
-        with patch.object(face_tasks, "_cached_face_predict", side_effect=lambda f, key, *_: probs[key]):
-            race = face_tasks._race_task(models, AnalysisConfig(active_race={"deepface", "fairface"}), inputs)
+        with patch.object(
+            face_tasks,
+            "_cached_face_predict",
+            side_effect=lambda f, key, *_: probs[key],
+        ):
+            race = face_tasks._race_task(
+                models, AnalysisConfig(active_race={"deepface", "fairface"}), inputs
+            )
         self.assertEqual(race[1], ("White", "fairface"))
         e = ([], None)
-        rec = _face_record(0, {"inputs": inputs, "age": e, "gender": e, "emotion": e, "race": race,
-                               "gaze": [], "head_pose": [], "recognition": e, "glasses": [], "mask": [],
-                               "eye_color": [], "liveness": e})
+        rec = _face_record(
+            0,
+            {
+                "inputs": inputs,
+                "age": e,
+                "gender": e,
+                "emotion": e,
+                "race": race,
+                "gaze": [],
+                "head_pose": [],
+                "recognition": e,
+                "glasses": [],
+                "mask": [],
+                "eye_color": [],
+                "liveness": e,
+            },
+        )
         self.assertEqual(rec["headline"]["race"], "White")
         self.assertEqual(rec["raw_columns"]["race_best"], "White (fairface)")
         self.assertNotIn("race_fused", rec["raw_columns"])
-        self.assertEqual(rec["model_results"][0], {"Feature": "RACE", "Model": "best", "Output": "White (fairface)"})
-        self.assertEqual(aggregate_demographics([rec])["race"]["best"], {"White (fairface)": 1})
+        self.assertEqual(
+            rec["model_results"][0],
+            {"Feature": "RACE", "Model": "best", "Output": "White (fairface)"},
+        )
+        self.assertEqual(
+            aggregate_demographics([rec])["race"]["best"], {"White (fairface)": 1}
+        )
 
 
 class TestGenderHeadline(unittest.TestCase):
@@ -240,27 +287,70 @@ class TestGenderHeadline(unittest.TestCase):
 
     def test_gender_headline_names_mivolo_over_three_disagreeing_backends(self):
         """Name mivolo as the gender headline even when every other backend says otherwise."""
-        probs = {"fairface": np.array([.9, .1]), "caffe": np.array([.9, .1]), "deepface": np.array([.1, .9])}
+        probs = {
+            "fairface": np.array([0.9, 0.1]),
+            "caffe": np.array([0.9, 0.1]),
+            "deepface": np.array([0.1, 0.9]),
+        }
         face = np.zeros((8, 8, 3), np.uint8)
-        inputs = SimpleNamespace(face=face, crop_frame=face, crop_box=(0, 0, 8, 8), fairface_landmarks=None,
-                                 box=(0, 0, 8, 8), track_id=None, blob227=None, mivolo_result=(30.0, "Female"))
+        inputs = SimpleNamespace(
+            face=face,
+            crop_frame=face,
+            crop_box=(0, 0, 8, 8),
+            fairface_landmarks=None,
+            box=(0, 0, 8, 8),
+            track_id=None,
+            blob227=None,
+            mivolo_result=(30.0, "Female"),
+        )
         backends = {"caffe", "deepface", "fairface", "mivolo"}
         models = SimpleNamespace(gender_nets={key: object() for key in backends})
-        with patch.object(face_tasks, "_cached_face_predict", side_effect=lambda f, key, *_: probs[key]):
-            gender = face_tasks._gender_task(models, AnalysisConfig(active_gender=backends), inputs)
-        self.assertEqual(sorted(gender[0]), [("caffe", "Male"), ("deepface", "Male"), ("fairface", "Male"),
-                                             ("mivolo", "Female")])
+        with patch.object(
+            face_tasks,
+            "_cached_face_predict",
+            side_effect=lambda f, key, *_: probs[key],
+        ):
+            gender = face_tasks._gender_task(
+                models, AnalysisConfig(active_gender=backends), inputs
+            )
+        self.assertEqual(
+            sorted(gender[0]),
+            [
+                ("caffe", "Male"),
+                ("deepface", "Male"),
+                ("fairface", "Male"),
+                ("mivolo", "Female"),
+            ],
+        )
         self.assertEqual(gender[1], ("Female", "mivolo"))
         e = ([], None)
-        rec = _face_record(0, {"inputs": inputs, "age": e, "gender": gender, "emotion": e, "race": e,
-                               "gaze": [], "head_pose": [], "recognition": e, "glasses": [], "mask": [],
-                               "eye_color": [], "liveness": e})
+        rec = _face_record(
+            0,
+            {
+                "inputs": inputs,
+                "age": e,
+                "gender": gender,
+                "emotion": e,
+                "race": e,
+                "gaze": [],
+                "head_pose": [],
+                "recognition": e,
+                "glasses": [],
+                "mask": [],
+                "eye_color": [],
+                "liveness": e,
+            },
+        )
         self.assertEqual(rec["headline"]["gender"], "Female")
         self.assertEqual(rec["raw_columns"]["gender_best"], "Female (mivolo)")
         self.assertNotIn("gender_fused", rec["raw_columns"])
-        self.assertEqual(rec["model_results"][0],
-                         {"Feature": "GENDER", "Model": "best", "Output": "Female (mivolo)"})
-        self.assertEqual(aggregate_demographics([rec])["gender"]["best"], {"Female (mivolo)": 1})
+        self.assertEqual(
+            rec["model_results"][0],
+            {"Feature": "GENDER", "Model": "best", "Output": "Female (mivolo)"},
+        )
+        self.assertEqual(
+            aggregate_demographics([rec])["gender"]["best"], {"Female (mivolo)": 1}
+        )
 
 
 if __name__ == "__main__":

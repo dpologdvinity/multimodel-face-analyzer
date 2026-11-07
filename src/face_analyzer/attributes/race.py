@@ -1,4 +1,5 @@
 """Race classification models and FairFace forward inference."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -29,7 +30,11 @@ def fairface_aligned_face(
     landmarks: np.ndarray | None = None,
 ) -> np.ndarray:
     """Return the 224x224 BGR face FairFace-style backends see: landmark-aligned, else margin-cropped."""
-    aligned = align_face_with_landmarks(frame_bgr, landmarks, 224) if landmarks is not None else None
+    aligned = (
+        align_face_with_landmarks(frame_bgr, landmarks, 224)
+        if landmarks is not None
+        else None
+    )
     if aligned is None:
         aligned = _margin_align(frame_bgr, box, 224, margin=1.5)
     return aligned
@@ -84,7 +89,9 @@ def fairface_age_label(probs: np.ndarray) -> str:
 
 def deepface_probabilities(net: Any, face_bgr: np.ndarray) -> np.ndarray:
     """Compute class probabilities from DeepFace head."""
-    face_rgb = cv2.cvtColor(cv2.resize(face_bgr, (224, 224)), cv2.COLOR_BGR2RGB).astype(np.float32)
+    face_rgb = cv2.cvtColor(cv2.resize(face_bgr, (224, 224)), cv2.COLOR_BGR2RGB).astype(
+        np.float32
+    )
     blob = face_rgb[np.newaxis, ...]
     with _lock_for(net):
         return net(blob, training=False).numpy().flatten()

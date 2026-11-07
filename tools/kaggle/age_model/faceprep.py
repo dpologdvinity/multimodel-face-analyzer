@@ -9,6 +9,7 @@ rebuild the identical crop with ``aligned_face`` from the original image on ever
 
 Torch-free on purpose: the prep kernel, the eval tools and the tests import it.
 """
+
 from __future__ import annotations
 
 import os
@@ -33,9 +34,20 @@ DETECTION_CONF = 0.5
 # Every model-selection variable the loader reads; empty means "not selected" (model_selection.py).
 # Only the face landmarker stays selected; the SSD detector and eye cascade always load.
 _SELECTION_ENV = (
-    "AGE_MODEL", "GENDER_MODEL", "EMOTION_MODEL", "RACE_MODEL", "LIVENESS_MODEL",
-    "RECOGNITION_MODEL", "GLASSES_MODEL", "MASK_MODEL", "COLORIZATION_MODEL", "HAND_MODEL",
-    "RECONSTRUCTION_3D_MODEL", "AGE_PROGRESSION_MODEL", "YOLO_FACE_MODEL", "SCRFD_FACE_MODEL",
+    "AGE_MODEL",
+    "GENDER_MODEL",
+    "EMOTION_MODEL",
+    "RACE_MODEL",
+    "LIVENESS_MODEL",
+    "RECOGNITION_MODEL",
+    "GLASSES_MODEL",
+    "MASK_MODEL",
+    "COLORIZATION_MODEL",
+    "HAND_MODEL",
+    "RECONSTRUCTION_3D_MODEL",
+    "AGE_PROGRESSION_MODEL",
+    "YOLO_FACE_MODEL",
+    "SCRFD_FACE_MODEL",
     "RETINAFACE_MODEL",
 )
 
@@ -88,7 +100,13 @@ def face_record(models, frame: np.ndarray) -> tuple[dict, object] | None:
     stages._cached_face_predict = recording
     try:
         inputs = stages._prepare_face(
-            models, frame, tuple(box), None, config, stages._frame_inputs(models, config))
+            models,
+            frame,
+            tuple(box),
+            None,
+            config,
+            stages._frame_inputs(models, config),
+        )
     finally:
         stages._cached_face_predict = original
     if inputs is None:
@@ -104,7 +122,9 @@ def face_record(models, frame: np.ndarray) -> tuple[dict, object] | None:
 
 def aligned_face(frame: np.ndarray, record: dict) -> np.ndarray:
     """Rebuild the app's 224x224 BGR aligned face from the original image and a crop record."""
-    crop_frame, crop_box = level_face_region(frame, tuple(record["box"]), record["angle"])
+    crop_frame, crop_box = level_face_region(
+        frame, tuple(record["box"]), record["angle"]
+    )
     landmarks = record["landmarks"]
     if landmarks is not None:
         landmarks = np.asarray(landmarks, np.float32)
@@ -120,7 +140,9 @@ def input_blob(frame: np.ndarray, record: dict) -> np.ndarray:
 
 def app_aligned_face(inputs) -> np.ndarray:
     """Return the aligned face the app itself builds from a _FaceInputs (the parity reference)."""
-    return fairface_aligned_face(inputs.crop_frame, inputs.crop_box, inputs.fairface_landmarks)
+    return fairface_aligned_face(
+        inputs.crop_frame, inputs.crop_box, inputs.fairface_landmarks
+    )
 
 
 def age_probabilities(net, inputs) -> np.ndarray:

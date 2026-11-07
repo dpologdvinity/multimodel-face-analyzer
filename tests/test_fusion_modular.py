@@ -4,6 +4,7 @@ Verifies that all exported symbols exist and behave correctly when imported
 directly from face_analyzer.fusion rather than through face_analyzer.inference -- i.e. that
 the subpackage is a self-contained, importable unit.
 """
+
 from __future__ import annotations
 
 import unittest
@@ -59,13 +60,26 @@ class SelectGenderTests(unittest.TestCase):
 
     def test_picks_mivolo_over_every_other_model(self):
         self.assertEqual(
-            select_gender({"caffe": "Female", "deepface": "Female", "fairface": "Female", "mivolo": "Male"}),
+            select_gender(
+                {
+                    "caffe": "Female",
+                    "deepface": "Female",
+                    "fairface": "Female",
+                    "mivolo": "Male",
+                }
+            ),
             ("Male", "mivolo"),
         )
 
     def test_falls_back_down_the_ranking(self):
-        self.assertEqual(select_gender({"caffe": "Male", "fairface": "Female"}), ("Female", "fairface"))
-        self.assertEqual(select_gender({"caffe": "Male", "deepface": "Female"}), ("Female", "deepface"))
+        self.assertEqual(
+            select_gender({"caffe": "Male", "fairface": "Female"}),
+            ("Female", "fairface"),
+        )
+        self.assertEqual(
+            select_gender({"caffe": "Male", "deepface": "Female"}),
+            ("Female", "deepface"),
+        )
 
     def test_needs_at_least_two_models(self):
         self.assertIsNone(select_gender({"mivolo": "Male"}))
@@ -78,7 +92,9 @@ class SelectRaceTests(unittest.TestCase):
 
     def test_picks_fairface_when_both_models_present(self):
         self.assertEqual(
-            select_race({"deepface": "black", "fairface": "White (46%)/East Asian (41%)"}),
+            select_race(
+                {"deepface": "black", "fairface": "White (46%)/East Asian (41%)"}
+            ),
             ("White (46%)/East Asian (41%)", "fairface"),
         )
 
@@ -88,7 +104,10 @@ class SelectRaceTests(unittest.TestCase):
         self.assertIsNone(select_race({}))
 
     def test_unknown_model_ranks_last(self):
-        self.assertEqual(select_race({"newnet": "Indian", "deepface": "white"}), ("white", "deepface"))
+        self.assertEqual(
+            select_race({"newnet": "Indian", "deepface": "white"}),
+            ("white", "deepface"),
+        )
 
 
 class FuseEmotionTests(unittest.TestCase):
@@ -97,13 +116,16 @@ class FuseEmotionTests(unittest.TestCase):
     def test_votes_across_differing_spellings_of_one_state(self):
         # ferplus says "happiness", dan says "happy" -- same canonical state.
         self.assertEqual(
-            fuse_emotion({"ferplus": "happiness", "dan": "happy", "mini_xception": "sad"}),
+            fuse_emotion(
+                {"ferplus": "happiness", "dan": "happy", "mini_xception": "sad"}
+            ),
             "happy",
         )
 
     def test_accurate_models_outweigh_inaccurate_one(self):
         self.assertEqual(
-            fuse_emotion({"dan": "neutral", "mini_xception": "sad"}), "neutral",
+            fuse_emotion({"dan": "neutral", "mini_xception": "sad"}),
+            "neutral",
         )
 
     def test_needs_at_least_two_models(self):
@@ -129,7 +151,11 @@ class GatherFaceResultsTests(unittest.TestCase):
     def test_shape_matches_total_model_outputs(self):
         pairs_by_feature = {
             "race": [("fairface", "White"), ("deepface", "White")],
-            "emotion": [("dan", "happy"), ("ferplus", "happiness"), ("mini_xception", "sad")],
+            "emotion": [
+                ("dan", "happy"),
+                ("ferplus", "happiness"),
+                ("mini_xception", "sad"),
+            ],
         }
         result = _gather_face_results(pairs_by_feature)
         self.assertEqual(len(result), 5)
@@ -145,10 +171,14 @@ class SanitizeColumnNameTests(unittest.TestCase):
         self.assertEqual(_sanitize_column_name("age", "mivolo"), "age_mivolo")
 
     def test_lowercases_and_replaces_spaces(self):
-        self.assertEqual(_sanitize_column_name("Eye Color", "colorimetric"), "eye_color_colorimetric")
+        self.assertEqual(
+            _sanitize_column_name("Eye Color", "colorimetric"), "eye_color_colorimetric"
+        )
 
     def test_replaces_hyphens(self):
-        self.assertEqual(_sanitize_column_name("eye-color", "colorimetric"), "eye_color_colorimetric")
+        self.assertEqual(
+            _sanitize_column_name("eye-color", "colorimetric"), "eye_color_colorimetric"
+        )
 
 
 class FormatResultsTests(unittest.TestCase):

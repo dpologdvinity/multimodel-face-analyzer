@@ -11,6 +11,7 @@ stopping. FairFace VALIDATION is never read here: it is the held-out test set.
 
     python train_age.py --prep DIR --crops DIR --out DIR [--epochs 14] [--max-steps N] [--smoke]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -43,8 +44,10 @@ SIZE = 224
 BACKBONE = "convnext_tiny.fb_in22k_ft_in1k"
 BACKBONE_REPO = "timm/convnext_tiny.fb_in22k_ft_in1k"
 BACKBONE_REVISION = "bc48a87f119bae1b06418f5340bfa97ef75d4609"
-BACKBONE_LICENSE = ("Apache-2.0 (Hugging Face model card of timm/convnext_tiny.fb_in22k_ft_in1k); "
-                    "upstream facebookresearch/ConvNeXt weights are MIT")
+BACKBONE_LICENSE = (
+    "Apache-2.0 (Hugging Face model card of timm/convnext_tiny.fb_in22k_ft_in1k); "
+    "upstream facebookresearch/ConvNeXt weights are MIT"
+)
 SELECT_FRACTION = 0.05
 SEED = 0
 
@@ -52,7 +55,9 @@ SEED = 0
 # --------------------------------------------------------------------------- data
 
 
-def selection_split(age: np.ndarray, race: np.ndarray, seed: int) -> tuple[np.ndarray, np.ndarray]:
+def selection_split(
+    age: np.ndarray, race: np.ndarray, seed: int
+) -> tuple[np.ndarray, np.ndarray]:
     """Split indices into (train, select): SELECT_FRACTION of every (age, race) stratum is held back."""
     rng = np.random.default_rng([seed, 7])
     train, select = [], []
@@ -68,24 +73,39 @@ def selection_split(age: np.ndarray, race: np.ndarray, seed: int) -> tuple[np.nd
 class CropBatches:
     """Batches of (uint8 BGR NHWC crops, age, gender, race), gathered by a background thread."""
 
-    def __init__(self, crops: np.ndarray, meta: dict, indices: np.ndarray, batch: int,
-                 shuffle: bool, seed: int = SEED, prefetch: int = 6):
+    def __init__(
+        self,
+        crops: np.ndarray,
+        meta: dict,
+        indices: np.ndarray,
+        batch: int,
+        shuffle: bool,
+        seed: int = SEED,
+        prefetch: int = 6,
+    ):
         self.crops, self.meta, self.indices = crops, meta, indices
         self.batch, self.shuffle, self.prefetch = batch, shuffle, prefetch
         self.rng = np.random.default_rng([seed, 11])
 
     def __len__(self) -> int:
-        return len(self.indices) // self.batch if self.shuffle else -(-len(self.indices) // self.batch)
+        return (
+            len(self.indices) // self.batch
+            if self.shuffle
+            else -(-len(self.indices) // self.batch)
+        )
 
     def _batches(self):
         order = self.rng.permutation(self.indices) if self.shuffle else self.indices
         for k in range(len(self)):
             # Sorted within the batch so the memory-mapped reads go forward through the file.
-            idx = np.sort(order[k * self.batch:(k + 1) * self.batch])
+            idx = np.sort(order[k * self.batch : (k + 1) * self.batch])
             x = torch.from_numpy(np.ascontiguousarray(self.crops[idx]))
             if torch.cuda.is_available():
                 x = x.pin_memory()
-            labels = [torch.from_numpy(self.meta[key][idx].astype(np.int64)) for key in ("age", "gender", "race")]
+            labels = [
+                torch.from_numpy(self.meta[key][idx].astype(np.int64))
+                for key in ("age", "gender", "race")
+            ]
             yield (x, *labels)
 
     def __iter__(self):
@@ -126,21 +146,36 @@ class GpuInput:
         theta[:, 0, 1] = -torch.sin(angle) / scale
         theta[:, 1, 0] = torch.sin(angle) / scale
         theta[:, 1, 1] = torch.cos(angle) / scale
-        theta[:, :, 2] = (torch.rand(n, 2, device=self.device, generator=self.gen) - 0.5) * 0.2
+        theta[:, :, 2] = (
+            torch.rand(n, 2, device=self.device, generator=self.gen) - 0.5
+        ) * 0.2
         grid = F.affine_grid(theta, list(x.shape), align_corners=False)
-        x = F.grid_sample(x, grid, mode="bilinear", padding_mode="zeros", align_corners=False)
-        x = x * (0.7 + 0.6 * self._rand(n))[:, None, None, None] + (self._rand(n) * 50 - 25)[:, None, None, None]
+        x = F.grid_sample(
+            x, grid, mode="bilinear", padding_mode="zeros", align_corners=False
+        )
+        x = (
+            x * (0.7 + 0.6 * self._rand(n))[:, None, None, None]
+            + (self._rand(n) * 50 - 25)[:, None, None, None]
+        )
         gray = x.mean(1, keepdim=True)
         x = gray + (x - gray) * (0.6 + 0.8 * self._rand(n))[:, None, None, None]
-        x = torch.where((self._rand(n) < 0.05)[:, None, None, None], x.mean(1, keepdim=True).expand_as(x), x)
+        x = torch.where(
+            (self._rand(n) < 0.05)[:, None, None, None],
+            x.mean(1, keepdim=True).expand_as(x),
+            x,
+        )
         x = x.clamp(0, 255)
-        low = torch.nonzero(self._rand(n) < 0.15).flatten().tolist()  # webcams, small faces
+        low = (
+            torch.nonzero(self._rand(n) < 0.15).flatten().tolist()
+        )  # webcams, small faces
         if low:
             sizes = (48 + self._rand(len(low)) * 64).long().tolist()
             x = x.clone()
             for i, small in zip(low, sizes, strict=True):
-                shrunk = F.interpolate(x[i:i + 1], size=(small, small), mode="area")
-                x[i:i + 1] = F.interpolate(shrunk, size=(SIZE, SIZE), mode="bilinear", align_corners=False)
+                shrunk = F.interpolate(x[i : i + 1], size=(small, small), mode="area")
+                x[i : i + 1] = F.interpolate(
+                    shrunk, size=(SIZE, SIZE), mode="bilinear", align_corners=False
+                )
         return x
 
     def __call__(self, crops: torch.Tensor, augment: bool = False) -> torch.Tensor:
@@ -149,7 +184,9 @@ class GpuInput:
         if augment:
             x = self.augment(x)
         x = x.flip(1)  # BGR to RGB
-        return ((x / 255.0 - self.mean) / self.std).contiguous(memory_format=torch.channels_last)
+        return ((x / 255.0 - self.mean) / self.std).contiguous(
+            memory_format=torch.channels_last
+        )
 
 
 # --------------------------------------------------------------------------- model
@@ -188,30 +225,48 @@ def build_model(aux: bool, drop_path: float) -> AgeNet:
     import timm
     from huggingface_hub import hf_hub_download
 
-    weights = hf_hub_download(BACKBONE_REPO, "model.safetensors", revision=BACKBONE_REVISION)
-    reference = timm.create_model(BACKBONE, pretrained=True, num_classes=0,
-                                  pretrained_cfg_overlay={"file": weights}).eval()
-    trunk = timm.create_model(BACKBONE, pretrained=False, num_classes=0, conv_mlp=True,
-                              drop_path_rate=drop_path)
+    weights = hf_hub_download(
+        BACKBONE_REPO, "model.safetensors", revision=BACKBONE_REVISION
+    )
+    reference = timm.create_model(
+        BACKBONE,
+        pretrained=True,
+        num_classes=0,
+        pretrained_cfg_overlay={"file": weights},
+    ).eval()
+    trunk = timm.create_model(
+        BACKBONE,
+        pretrained=False,
+        num_classes=0,
+        conv_mlp=True,
+        drop_path_rate=drop_path,
+    )
     target = trunk.state_dict()
     source = reference.state_dict()
     if set(source) != set(target):
-        raise RuntimeError(f"state dict keys differ: {sorted(set(source) ^ set(target))[:10]}")
+        raise RuntimeError(
+            f"state dict keys differ: {sorted(set(source) ^ set(target))[:10]}"
+        )
     trunk.load_state_dict({k: v.reshape(target[k].shape) for k, v in source.items()})
     trunk.eval()
     x = torch.randn(2, 3, 224, 224)
     with torch.no_grad():
         diff = float((trunk(x) - reference(x)).abs().max())
     if diff > 1e-3:
-        raise RuntimeError(f"conv-MLP conversion changed the features (max diff {diff})")
-    print(f"pretrained trunk converted to conv MLP, max feature diff {diff:.2e}", flush=True)
+        raise RuntimeError(
+            f"conv-MLP conversion changed the features (max diff {diff})"
+        )
+    print(
+        f"pretrained trunk converted to conv MLP, max feature diff {diff:.2e}",
+        flush=True,
+    )
     return AgeNet(trunk, trunk.num_features, aux)
 
 
 def ordinal_targets(age: torch.Tensor, sigma: float) -> torch.Tensor:
     """Soft labels: a Gaussian over bucket indices centred on the true bucket (sigma in buckets)."""
     grid = torch.arange(N_AGE, device=age.device, dtype=torch.float32)
-    logits = -((grid[None, :] - age[:, None].float()) ** 2) / (2 * sigma ** 2)
+    logits = -((grid[None, :] - age[:, None].float()) ** 2) / (2 * sigma**2)
     return torch.softmax(logits, dim=1)
 
 
@@ -219,12 +274,16 @@ def ordinal_targets(age: torch.Tensor, sigma: float) -> torch.Tensor:
 
 
 @torch.no_grad()
-def predict(model: nn.Module, batches: CropBatches, to_input: GpuInput) -> tuple[np.ndarray, np.ndarray]:
+def predict(
+    model: nn.Module, batches: CropBatches, to_input: GpuInput
+) -> tuple[np.ndarray, np.ndarray]:
     """Return (age probabilities, true buckets) over unaugmented batches."""
     model.eval()
     probs, truth = [], []
     for x, age, _, _ in batches:
-        with torch.autocast("cuda", dtype=torch.float16, enabled=to_input.device.type == "cuda"):
+        with torch.autocast(
+            "cuda", dtype=torch.float16, enabled=to_input.device.type == "cuda"
+        ):
             logits = model(to_input(x))[0]
         probs.append(torch.softmax(logits.float(), 1).cpu().numpy())
         truth.append(age.numpy())
@@ -234,19 +293,27 @@ def predict(model: nn.Module, batches: CropBatches, to_input: GpuInput) -> tuple
 def metrics(probs: np.ndarray, truth: np.ndarray) -> dict:
     """Bucket accuracy, within-one-bucket rate and mean bucket offset."""
     offset = np.abs(probs.argmax(1) - truth)
-    return {"accuracy": round(float((offset == 0).mean()), 4),
-            "within_one": round(float((offset <= 1).mean()), 4),
-            "mean_offset": round(float(offset.mean()), 4)}
+    return {
+        "accuracy": round(float((offset == 0).mean()), 4),
+        "within_one": round(float((offset <= 1).mean()), 4),
+        "mean_offset": round(float(offset.mean()), 4),
+    }
 
 
 def export_onnx(model: AgeNet, path: Path) -> None:
     """Export the age head to ONNX (opset 17, the TorchScript exporter: cv2.dnn imports it)."""
     wrapped = AgeOnly(copy.deepcopy(model).float().cpu().eval())
     x = torch.randn(1, 3, 224, 224)
-    kwargs = {"opset_version": 17, "input_names": ["input"], "output_names": ["age_logits"]}
+    kwargs = {
+        "opset_version": 17,
+        "input_names": ["input"],
+        "output_names": ["age_logits"],
+    }
     try:
         torch.onnx.export(wrapped, x, str(path), dynamo=False, **kwargs)
-    except TypeError:  # torch releases before the dynamo switch only have the TorchScript exporter
+    except (
+        TypeError
+    ):  # torch releases before the dynamo switch only have the TorchScript exporter
         torch.onnx.export(wrapped, x, str(path), **kwargs)
 
 
@@ -263,11 +330,16 @@ print(json.dumps({"cv2": cv2.__version__, "max_abs_diff": float(np.abs(out - ref
 """
 
 
-
-
-def diagnose(crops: np.ndarray, meta: dict, train_idx: np.ndarray, to_input: GpuInput, batch: int,
-             emit) -> None:
+def diagnose(
+    crops: np.ndarray,
+    meta: dict,
+    train_idx: np.ndarray,
+    to_input: GpuInput,
+    batch: int,
+    emit,
+) -> None:
     """Time the input pipeline and the training step variants separately, then return."""
+
     def timed(fn, warmup: int, runs: int) -> float:
         for _ in range(warmup):
             fn()
@@ -282,15 +354,30 @@ def diagnose(crops: np.ndarray, meta: dict, train_idx: np.ndarray, to_input: Gpu
     t = time.time()
     for _ in range(30):
         x, *_ = next(batches)
-    emit({"event": "diag_data", "s_per_batch": round((time.time() - t) / 30, 3), **memory_note()})
-    emit({"event": "diag_input", "augment_s": timed(lambda: to_input(x, augment=True), 2, 10),
-          "plain_s": timed(lambda: to_input(x), 2, 10)})
+    emit(
+        {
+            "event": "diag_data",
+            "s_per_batch": round((time.time() - t) / 30, 3),
+            **memory_note(),
+        }
+    )
+    emit(
+        {
+            "event": "diag_input",
+            "augment_s": timed(lambda: to_input(x, augment=True), 2, 10),
+            "plain_s": timed(lambda: to_input(x), 2, 10),
+        }
+    )
     model = build_model(False, 0.1).cuda()
     targets = torch.randint(0, N_AGE, (batch,), device="cuda")
     for bench in (False, True):
         torch.backends.cudnn.benchmark = bench
         for layout in ("channels_last", "contiguous"):
-            fmt = torch.channels_last if layout == "channels_last" else torch.contiguous_format
+            fmt = (
+                torch.channels_last
+                if layout == "channels_last"
+                else torch.contiguous_format
+            )
             model = model.to(memory_format=fmt).train()
             for gpus in (1, 2):
                 net = nn.DataParallel(model) if gpus == 2 else model
@@ -306,8 +393,16 @@ def diagnose(crops: np.ndarray, meta: dict, train_idx: np.ndarray, to_input: Gpu
                     scaler.step(opt)
                     scaler.update()
 
-                emit({"event": "diag_step", "cudnn_benchmark": bench, "layout": layout, "gpus": gpus,
-                      "s_per_step": timed(step, 2, 5), **memory_note()})
+                emit(
+                    {
+                        "event": "diag_step",
+                        "cudnn_benchmark": bench,
+                        "layout": layout,
+                        "gpus": gpus,
+                        "s_per_step": timed(step, 2, 5),
+                        **memory_note(),
+                    }
+                )
 
 
 def memory_note() -> dict:
@@ -317,7 +412,10 @@ def memory_note() -> dict:
         import psutil
 
         vm = psutil.virtual_memory()
-        out.update(ram_used_gb=round(vm.used / 2**30, 1), ram_available_gb=round(vm.available / 2**30, 1))
+        out.update(
+            ram_used_gb=round(vm.used / 2**30, 1),
+            ram_available_gb=round(vm.available / 2**30, 1),
+        )
     except ImportError:
         pass
     if torch.cuda.is_available():
@@ -327,24 +425,47 @@ def memory_note() -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n", 1)[0])
-    parser.add_argument("--prep", type=Path, required=True, help="prep kernel output directory")
-    parser.add_argument("--crops", type=Path, required=True, help="crops kernel output directory")
+    parser.add_argument(
+        "--prep", type=Path, required=True, help="prep kernel output directory"
+    )
+    parser.add_argument(
+        "--crops", type=Path, required=True, help="crops kernel output directory"
+    )
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--epochs", type=int, default=12)
     parser.add_argument("--patience", type=int, default=4)
     parser.add_argument("--batch", type=int, default=128)
-    parser.add_argument("--lr", type=float, default=2e-4, help="peak learning rate of the trunk")
+    parser.add_argument(
+        "--lr", type=float, default=2e-4, help="peak learning rate of the trunk"
+    )
     parser.add_argument("--head-lr-mult", type=float, default=5.0)
     parser.add_argument("--weight-decay", type=float, default=0.05)
     parser.add_argument("--drop-path", type=float, default=0.1)
-    parser.add_argument("--sigma", type=float, default=0.5, help="ordinal label spread, in buckets")
-    parser.add_argument("--aux-weight", type=float, default=0.0, help="gender+race loss weight; 0 = off")
+    parser.add_argument(
+        "--sigma", type=float, default=0.5, help="ordinal label spread, in buckets"
+    )
+    parser.add_argument(
+        "--aux-weight", type=float, default=0.0, help="gender+race loss weight; 0 = off"
+    )
     parser.add_argument("--ema", type=float, default=0.9995)
-    parser.add_argument("--time-budget-min", type=float, default=120.0,
-                        help="wall-clock budget for setup plus training; the schedule shrinks to fit")
-    parser.add_argument("--diagnose", action="store_true", help="time pipeline parts and step variants")
-    parser.add_argument("--max-steps", type=int, default=0, help="timing check: stop after N steps, no export")
-    parser.add_argument("--smoke", action="store_true", help="tiny CPU-safe run to check the plumbing")
+    parser.add_argument(
+        "--time-budget-min",
+        type=float,
+        default=120.0,
+        help="wall-clock budget for setup plus training; the schedule shrinks to fit",
+    )
+    parser.add_argument(
+        "--diagnose", action="store_true", help="time pipeline parts and step variants"
+    )
+    parser.add_argument(
+        "--max-steps",
+        type=int,
+        default=0,
+        help="timing check: stop after N steps, no export",
+    )
+    parser.add_argument(
+        "--smoke", action="store_true", help="tiny CPU-safe run to check the plumbing"
+    )
     args = parser.parse_args()
 
     started = time.time()
@@ -367,33 +488,66 @@ def main() -> None:
         raise SystemExit(f"refusing non-TRAIN inputs: {files}")
     crops = np.load(args.crops / "crops_train.npy", mmap_mode="r")
     if crops.shape != (len(prep["row"]), SIZE, SIZE, 3):
-        raise SystemExit(f"crops shape {crops.shape} does not match {len(prep['row'])} records")
+        raise SystemExit(
+            f"crops shape {crops.shape} does not match {len(prep['row'])} records"
+        )
     if not args.diagnose and not args.smoke:
         # Random-row reads from the mounted input ran at about 0.7 s per batch; read it once instead.
         loaded = np.empty(crops.shape, np.uint8)
         t = time.time()
         for a in range(0, len(crops), 4096):
-            loaded[a:a + 4096] = crops[a:a + 4096]
+            loaded[a : a + 4096] = crops[a : a + 4096]
         crops = loaded
-        emit({"event": "crops_in_ram", "minutes": round((time.time() - t) / 60, 1), **memory_note()})
+        emit(
+            {
+                "event": "crops_in_ram",
+                "minutes": round((time.time() - t) / 60, 1),
+                **memory_note(),
+            }
+        )
     detected = np.flatnonzero(prep["detected"])
-    train_idx, select_idx = selection_split(meta["age"][detected], meta["race"][detected], SEED)
+    train_idx, select_idx = selection_split(
+        meta["age"][detected], meta["race"][detected], SEED
+    )
     train_idx, select_idx = detected[train_idx], detected[select_idx]
     if args.smoke:
         train_idx, select_idx = train_idx[:256], select_idx[:128]
         args.epochs, args.batch = 2, 32
-    emit({"event": "split", "train_images": len(prep["row"]), "detected": len(detected),
-          "train": len(train_idx), "select": len(select_idx)})
+    emit(
+        {
+            "event": "split",
+            "train_images": len(prep["row"]),
+            "detected": len(detected),
+            "train": len(train_idx),
+            "select": len(select_idx),
+        }
+    )
 
     # Parity: the crops must be the app-built references, and the unaugmented GPU input must be
     # the app's own blob (faceprep.imagenet_blob) of each crop.
     to_input = GpuInput(device)
     refs = np.load(args.prep / "reference_crops.npz")
-    if not all(np.array_equal(crops[int(i)], crop) for i, crop in zip(refs["index"], refs["crops"], strict=True)):
+    if not all(
+        np.array_equal(crops[int(i)], crop)
+        for i, crop in zip(refs["index"], refs["crops"], strict=True)
+    ):
         raise SystemExit("crops differ from the app-built reference crops")
-    blob_diff = max(float(np.abs(to_input(torch.from_numpy(crop[None])).cpu().float().numpy()
-                                 - faceprep.imagenet_blob(crop)).max()) for crop in refs["crops"][:16])
-    emit({"event": "parity", "reference_crops_identical": len(refs["index"]), "input_max_abs_diff": blob_diff})
+    blob_diff = max(
+        float(
+            np.abs(
+                to_input(torch.from_numpy(crop[None])).cpu().float().numpy()
+                - faceprep.imagenet_blob(crop)
+            ).max()
+        )
+        for crop in refs["crops"][:16]
+    )
+    emit(
+        {
+            "event": "parity",
+            "reference_crops_identical": len(refs["index"]),
+            "input_max_abs_diff": blob_diff,
+        }
+    )
     if blob_diff > 1e-5:
         raise SystemExit("GPU input normalization differs from the app's")
 
@@ -405,14 +559,24 @@ def main() -> None:
 
     from timm.utils import ModelEmaV3
 
-    model = build_model(args.aux_weight > 0, args.drop_path).to(device).to(memory_format=torch.channels_last)
+    model = (
+        build_model(args.aux_weight > 0, args.drop_path)
+        .to(device)
+        .to(memory_format=torch.channels_last)
+    )
     ema = ModelEmaV3(model, decay=args.ema)
     trunk_params = list(model.trunk.parameters())
-    head_params = [p for name, p in model.named_parameters() if not name.startswith("trunk.")]
+    head_params = [
+        p for name, p in model.named_parameters() if not name.startswith("trunk.")
+    ]
     no_decay = {id(p) for p in trunk_params if p.ndim <= 1}
     groups = [
         {"params": [p for p in trunk_params if id(p) not in no_decay], "lr": args.lr},
-        {"params": [p for p in trunk_params if id(p) in no_decay], "lr": args.lr, "weight_decay": 0.0},
+        {
+            "params": [p for p in trunk_params if id(p) in no_decay],
+            "lr": args.lr,
+            "weight_decay": 0.0,
+        },
         {"params": head_params, "lr": args.lr * args.head_lr_mult},
     ]
     for group in groups:
@@ -423,9 +587,18 @@ def main() -> None:
     parallel = model
     steps_per_epoch = len(train_batches)
     total_steps, warmup = steps_per_epoch * args.epochs, steps_per_epoch
-    emit({"event": "start", "device": torch.cuda.get_device_name(0) if device.type == "cuda" else "cpu",
-          "gpus": torch.cuda.device_count(), "steps_per_epoch": steps_per_epoch, **memory_note(), "args": {
-              k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()}})
+    emit(
+        {
+            "event": "start",
+            "device": torch.cuda.get_device_name(0) if device.type == "cuda" else "cpu",
+            "gpus": torch.cuda.device_count(),
+            "steps_per_epoch": steps_per_epoch,
+            **memory_note(),
+            "args": {
+                k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()
+            },
+        }
+    )
 
     best = {"accuracy": -1.0}
     best_state = None
@@ -438,19 +611,34 @@ def main() -> None:
         model.train()
         running, seen = 0.0, 0
         for x, age, gender, race in train_batches:
-            factor = step / warmup if step < warmup else 0.5 * (1 + math.cos(
-                math.pi * (step - warmup) / max(1, total_steps - warmup)))
+            factor = (
+                step / warmup
+                if step < warmup
+                else 0.5
+                * (
+                    1
+                    + math.cos(math.pi * (step - warmup) / max(1, total_steps - warmup))
+                )
+            )
             for group in optimizer.param_groups:
                 group["lr"] = group["base_lr"] * max(factor, 0.01)
             x = to_input(x, augment=True)
             age, gender, race = age.to(device), gender.to(device), race.to(device)
-            with torch.autocast("cuda", dtype=torch.float16, enabled=device.type == "cuda"):
+            with torch.autocast(
+                "cuda", dtype=torch.float16, enabled=device.type == "cuda"
+            ):
                 age_logits, aux_logits = parallel(x)
-            loss = torch.sum(-ordinal_targets(age, args.sigma) * F.log_softmax(age_logits.float(), 1), 1).mean()
+            loss = torch.sum(
+                -ordinal_targets(age, args.sigma)
+                * F.log_softmax(age_logits.float(), 1),
+                1,
+            ).mean()
             if aux_logits is not None:
                 aux_logits = aux_logits.float()
-                loss = loss + args.aux_weight * (F.cross_entropy(aux_logits[:, :N_GENDER], gender)
-                                                 + F.cross_entropy(aux_logits[:, N_GENDER:], race))
+                loss = loss + args.aux_weight * (
+                    F.cross_entropy(aux_logits[:, :N_GENDER], gender)
+                    + F.cross_entropy(aux_logits[:, N_GENDER:], race)
+                )
             optimizer.zero_grad(set_to_none=True)
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
@@ -464,18 +652,35 @@ def main() -> None:
             if step % 50 == 0:
                 per_step = (time.time() - tick) / 50
                 tick = time.time()
-                emit({"event": "step", "step": step, "loss": round(running / seen, 4),
-                      "s_per_step": round(per_step, 3), **memory_note()})
+                emit(
+                    {
+                        "event": "step",
+                        "step": step,
+                        "loss": round(running / seen, 4),
+                        "s_per_step": round(per_step, 3),
+                        **memory_note(),
+                    }
+                )
                 if not sized and step >= 100:
                     # Size the cosine schedule from the measured speed so the run fits the budget.
                     sized = True
                     epoch_s = per_step * steps_per_epoch + 60
-                    remaining = args.time_budget_min * 60 - (time.time() - started) + (time.time() - loop_started)
+                    remaining = (
+                        args.time_budget_min * 60
+                        - (time.time() - started)
+                        + (time.time() - loop_started)
+                    )
                     fits = max(1, int(remaining // epoch_s))
                     if fits < args.epochs:
                         args.epochs = fits
                         total_steps = steps_per_epoch * args.epochs
-                    emit({"event": "schedule", "epochs": args.epochs, "epoch_minutes": round(epoch_s / 60, 1)})
+                    emit(
+                        {
+                            "event": "schedule",
+                            "epochs": args.epochs,
+                            "epoch_minutes": round(epoch_s / 60, 1),
+                        }
+                    )
             if args.max_steps and step >= args.max_steps:
                 emit({"event": "timing_check_done", "steps": step, **memory_note()})
                 return
@@ -484,13 +689,24 @@ def main() -> None:
         for name, net in (("raw", model), ("ema", ema.module)):
             probs, truth = predict(net, select_batches, to_input)
             scores[name] = metrics(probs, truth)
-        emit({"event": "epoch", "epoch": epoch, "train_loss": round(running / max(seen, 1), 4), **scores,
-              **memory_note()})
+        emit(
+            {
+                "event": "epoch",
+                "epoch": epoch,
+                "train_loss": round(running / max(seen, 1), 4),
+                **scores,
+                **memory_note(),
+            }
+        )
         tick = time.time()
-        name = max(scores, key=lambda key: (scores[key]["accuracy"], scores[key]["within_one"]))
+        name = max(
+            scores, key=lambda key: (scores[key]["accuracy"], scores[key]["within_one"])
+        )
         if scores[name]["accuracy"] > best["accuracy"]:
             best = {**scores[name], "epoch": epoch, "weights": name}
-            best_state = copy.deepcopy((model if name == "raw" else ema.module).state_dict())
+            best_state = copy.deepcopy(
+                (model if name == "raw" else ema.module).state_dict()
+            )
             torch.save(best_state, args.out / "age_model_best.pt")
             stale = 0
         else:
@@ -503,19 +719,38 @@ def main() -> None:
     final.load_state_dict(best_state)
     final = final.to(device).to(memory_format=torch.channels_last).eval()
     probs, truth = predict(final, select_batches, to_input)
-    np.savez_compressed(args.out / "select_predictions.npz", index=select_idx, probs=probs, truth=truth)
+    np.savez_compressed(
+        args.out / "select_predictions.npz", index=select_idx, probs=probs, truth=truth
+    )
 
     onnx_path = args.out / "age_convnext_fairface.onnx"
     export_onnx(final, onnx_path)
-    batch = np.concatenate([faceprep.imagenet_blob(crops[int(i)]) for i in select_idx[:64]])
+    batch = np.concatenate(
+        [faceprep.imagenet_blob(crops[int(i)]) for i in select_idx[:64]]
+    )
     with torch.no_grad():
-        reference = AgeOnly(copy.deepcopy(final).float().cpu().eval())(torch.from_numpy(batch)).numpy()
+        reference = AgeOnly(copy.deepcopy(final).float().cpu().eval())(
+            torch.from_numpy(batch)
+        ).numpy()
     np.save(args.out / "check_x.npy", batch)
     np.save(args.out / "check_ref.npy", reference)
-    check = subprocess.run([sys.executable, "-c", CV2_CHECK, str(onnx_path), str(args.out / "check_x.npy"),
-                            str(args.out / "check_ref.npy")], capture_output=True, text=True)
-    cv2_check = json.loads(check.stdout.strip().splitlines()[-1]) if check.returncode == 0 else {
-        "error": check.stderr[-2000:]}
+    check = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            CV2_CHECK,
+            str(onnx_path),
+            str(args.out / "check_x.npy"),
+            str(args.out / "check_ref.npy"),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    cv2_check = (
+        json.loads(check.stdout.strip().splitlines()[-1])
+        if check.returncode == 0
+        else {"error": check.stderr[-2000:]}
+    )
     (args.out / "check_x.npy").unlink()
     (args.out / "check_ref.npy").unlink()
 
@@ -524,28 +759,62 @@ def main() -> None:
     import timm
 
     summary = {
-        "backbone": {"timm_name": BACKBONE, "hf_repo": BACKBONE_REPO, "revision": BACKBONE_REVISION,
-                     "license": BACKBONE_LICENSE, "mlp": "1x1 conv (conv_mlp=True), weights reshaped"},
-        "data": {"dataset": REPO_ID, "revision": REVISION, "files": files, "license": "CC BY 4.0",
-                 "train_images": int(len(prep["row"])), "detected": int(len(detected)),
-                 "train": int(len(train_idx)), "select": int(len(select_idx)),
-                 "select_rule": f"{SELECT_FRACTION:.0%} of every (age, race) stratum of TRAIN, seed {SEED}",
-                 "validation_used": False},
+        "backbone": {
+            "timm_name": BACKBONE,
+            "hf_repo": BACKBONE_REPO,
+            "revision": BACKBONE_REVISION,
+            "license": BACKBONE_LICENSE,
+            "mlp": "1x1 conv (conv_mlp=True), weights reshaped",
+        },
+        "data": {
+            "dataset": REPO_ID,
+            "revision": REVISION,
+            "files": files,
+            "license": "CC BY 4.0",
+            "train_images": int(len(prep["row"])),
+            "detected": int(len(detected)),
+            "train": int(len(train_idx)),
+            "select": int(len(select_idx)),
+            "select_rule": f"{SELECT_FRACTION:.0%} of every (age, race) stratum of TRAIN, seed {SEED}",
+            "validation_used": False,
+        },
         "loss": f"cross-entropy on Gaussian ordinal soft labels (sigma {args.sigma} buckets)"
-                + (f" + {args.aux_weight} x (gender + race CE)" if args.aux_weight else ""),
+        + (f" + {args.aux_weight} x (gender + race CE)" if args.aux_weight else ""),
         "augmentation": "on GPU: flip, rotation +-10 deg, scale 0.9-1.1, shift +-5%, contrast 0.7-1.3, "
-                        "brightness +-25, saturation 0.6-1.4, 5% grayscale, 15% down-up resample to 48-112 px",
-        "best": best, "select_final": metrics(probs, truth), "cv2_check": cv2_check,
-        "onnx": {"file": onnx_path.name, "opset": 17, "input": "input 1x3x224x224 RGB ImageNet-normalized",
-                 "output": "age_logits 1x9 (FairFace buckets 0-2 ... 70+)"},
-        "args": {k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()},
-        "versions": {"python": sys.version.split()[0], "torch": torch.__version__, "timm": timm.__version__,
-                     "opencv": cv2.__version__, "numpy": np.__version__, "onnx": metadata.version("onnx")},
+        "brightness +-25, saturation 0.6-1.4, 5% grayscale, 15% down-up resample to 48-112 px",
+        "best": best,
+        "select_final": metrics(probs, truth),
+        "cv2_check": cv2_check,
+        "onnx": {
+            "file": onnx_path.name,
+            "opset": 17,
+            "input": "input 1x3x224x224 RGB ImageNet-normalized",
+            "output": "age_logits 1x9 (FairFace buckets 0-2 ... 70+)",
+        },
+        "args": {
+            k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()
+        },
+        "versions": {
+            "python": sys.version.split()[0],
+            "torch": torch.__version__,
+            "timm": timm.__version__,
+            "opencv": cv2.__version__,
+            "numpy": np.__version__,
+            "onnx": metadata.version("onnx"),
+        },
         "device": torch.cuda.get_device_name(0) if device.type == "cuda" else "cpu",
-        "gpus_used": 1, "minutes": round((time.time() - started) / 60, 1),
+        "gpus_used": 1,
+        "minutes": round((time.time() - started) / 60, 1),
     }
-    (args.out / "selection_metrics.json").write_text(json.dumps(summary, indent=2) + "\n")
-    emit({"event": "done", **{k: summary[k] for k in ("best", "select_final", "cv2_check", "minutes")}})
+    (args.out / "selection_metrics.json").write_text(
+        json.dumps(summary, indent=2) + "\n"
+    )
+    emit(
+        {
+            "event": "done",
+            **{k: summary[k] for k in ("best", "select_final", "cv2_check", "minutes")},
+        }
+    )
 
 
 if __name__ == "__main__":

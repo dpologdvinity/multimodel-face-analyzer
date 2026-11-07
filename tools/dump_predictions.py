@@ -3,6 +3,7 @@
 Fusion rules can then be designed and re-scored in milliseconds instead of re-running the
 models for every idea. Run this again whenever a model's preprocessing changes.
 """
+
 from __future__ import annotations
 
 import json
@@ -56,23 +57,32 @@ def age_predictions(models, frame, box, landmarks, mivolo) -> dict:
     face = _face_crop(frame, box)
     out: dict = {}
     if "caffe" in models.age_nets:
-        blob = cv2.dnn.blobFromImage(face, 1.0, (227, 227), inf.MODEL_MEAN_VALUES, swapRB=False)
+        blob = cv2.dnn.blobFromImage(
+            face, 1.0, (227, 227), inf.MODEL_MEAN_VALUES, swapRB=False
+        )
         net = models.age_nets["caffe"]
         net.setInput(blob)
         out["caffe"] = net.forward().flatten().tolist()
     if "dex" in models.age_nets:
         net = models.age_nets["dex"]
-        for name, crop in (("dex", inf.crop_face_dex(frame, box)),
-                           ("dex_align", _margin_align(frame, box, 224, 1.3))):
-            blob = cv2.dnn.blobFromImage(crop, 1.0, (224, 224), inf.DEX_MEAN_VALUES,
-                                         swapRB=False, crop=False)
+        for name, crop in (
+            ("dex", inf.crop_face_dex(frame, box)),
+            ("dex_align", _margin_align(frame, box, 224, 1.3)),
+        ):
+            blob = cv2.dnn.blobFromImage(
+                crop, 1.0, (224, 224), inf.DEX_MEAN_VALUES, swapRB=False, crop=False
+            )
             net.setInput(blob)
             probs = net.forward().flatten().astype(np.float64)
             probs /= probs.sum()
             out[name] = float(probs @ np.arange(101))
-            out[f"{name}_sd"] = float(np.sqrt(probs @ ((np.arange(101) - out[name]) ** 2)))
+            out[f"{name}_sd"] = float(
+                np.sqrt(probs @ ((np.arange(101) - out[name]) ** 2))
+            )
     if "fairface" in models.age_nets:
-        logits = _fairface_forward(models.age_nets["fairface"], frame, box, "age_output", landmarks)
+        logits = _fairface_forward(
+            models.age_nets["fairface"], frame, box, "age_output", landmarks
+        )
         out["fairface_probs"] = _softmax(logits).tolist()
     if "mivolo" in models.age_nets and mivolo is not None:
         out["mivolo"] = mivolo[0]
@@ -84,17 +94,25 @@ def gender_predictions(models, frame, box, landmarks, mivolo) -> dict:
     face = _face_crop(frame, box)
     out: dict = {}
     if "caffe" in models.gender_nets:
-        blob = cv2.dnn.blobFromImage(face, 1.0, (227, 227), inf.MODEL_MEAN_VALUES, swapRB=False)
+        blob = cv2.dnn.blobFromImage(
+            face, 1.0, (227, 227), inf.MODEL_MEAN_VALUES, swapRB=False
+        )
         net = models.gender_nets["caffe"]
         net.setInput(blob)
         probs = net.forward().flatten()
         out["caffe"] = float(probs[0] / probs.sum())
     if "deepface" in models.gender_nets:
         resized = cv2.resize(face, (224, 224)).astype(np.float32)
-        probs = models.gender_nets["deepface"](resized[np.newaxis, ...], training=False).numpy().flatten()
+        probs = (
+            models.gender_nets["deepface"](resized[np.newaxis, ...], training=False)
+            .numpy()
+            .flatten()
+        )
         out["deepface"] = float(probs[1] / probs.sum())
     if "fairface" in models.gender_nets:
-        logits = _fairface_forward(models.gender_nets["fairface"], frame, box, "gender_output", landmarks)
+        logits = _fairface_forward(
+            models.gender_nets["fairface"], frame, box, "gender_output", landmarks
+        )
         out["fairface"] = float(_softmax(logits)[0])
     if "mivolo" in models.gender_nets and mivolo is not None:
         out["mivolo"] = 1.0 if mivolo[1] == "Male" else 0.0
@@ -106,12 +124,18 @@ def race_predictions(models, frame, box, landmarks) -> dict:
     face = _face_crop(frame, box)
     out: dict = {}
     if "fairface" in models.race_nets:
-        logits = _fairface_forward(models.race_nets["fairface"], frame, box, "race_output", landmarks)
+        logits = _fairface_forward(
+            models.race_nets["fairface"], frame, box, "race_output", landmarks
+        )
         out["fairface"] = _softmax(logits).tolist()
     if "deepface" in models.race_nets:
         resized = cv2.resize(face, (224, 224)).astype(np.float32)
-        out["deepface"] = models.race_nets["deepface"](
-            resized[np.newaxis, ...], training=False).numpy().flatten().tolist()
+        out["deepface"] = (
+            models.race_nets["deepface"](resized[np.newaxis, ...], training=False)
+            .numpy()
+            .flatten()
+            .tolist()
+        )
     return out
 
 
@@ -119,10 +143,12 @@ def emotion_predictions(models, frame, box) -> dict:
     """Label per emotion backend, straight from the production predict functions."""
     face = _face_crop(frame, box)
     out: dict = {}
-    for key, fn in (("dan", inf.predict_emotion_dan),
-                    ("mini_xception", inf.predict_emotion_mini_xception),
-                    ("ferplus", inf.predict_emotion_ferplus),
-                    ("hsemotion", inf.predict_emotion_hsemotion)):
+    for key, fn in (
+        ("dan", inf.predict_emotion_dan),
+        ("mini_xception", inf.predict_emotion_mini_xception),
+        ("ferplus", inf.predict_emotion_ferplus),
+        ("hsemotion", inf.predict_emotion_hsemotion),
+    ):
         if key in models.emotion_nets:
             out[key] = fn(models.emotion_nets[key], face)
     return out
@@ -145,8 +171,10 @@ def main() -> None:
             best, best_distance = None, 0.05
             for box in boxes:
                 x1, y1, x2, y2 = box
-                distance = (((x1 + x2) / 2 / width - tx) ** 2
-                            + ((y1 + y2) / 2 / height - ty) ** 2) ** 0.5
+                distance = (
+                    ((x1 + x2) / 2 / width - tx) ** 2
+                    + ((y1 + y2) / 2 / height - ty) ** 2
+                ) ** 0.5
                 if distance < best_distance:
                     best, best_distance = box, distance
             if best is None:
@@ -154,14 +182,18 @@ def main() -> None:
                 continue
             landmarks = _fairface_alignment(models, frame, best)
             mivolo = mivolo_once(models, frame, best)
-            records.append({
-                "id": f"{name}#{index}",
-                "truth": {k: v for k, v in truth.items() if k != "center"},
-                "age": age_predictions(models, frame, best, landmarks, mivolo),
-                "gender": gender_predictions(models, frame, best, landmarks, mivolo),
-                "race": race_predictions(models, frame, best, landmarks),
-                "emotion": emotion_predictions(models, frame, best),
-            })
+            records.append(
+                {
+                    "id": f"{name}#{index}",
+                    "truth": {k: v for k, v in truth.items() if k != "center"},
+                    "age": age_predictions(models, frame, best, landmarks, mivolo),
+                    "gender": gender_predictions(
+                        models, frame, best, landmarks, mivolo
+                    ),
+                    "race": race_predictions(models, frame, best, landmarks),
+                    "emotion": emotion_predictions(models, frame, best),
+                }
+            )
             print(f"  {records[-1]['id']}")
     out_path = ROOT / "tmp" / "predictions.json"
     out_path.parent.mkdir(exist_ok=True)

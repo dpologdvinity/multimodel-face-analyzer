@@ -1,4 +1,5 @@
 """Per-image results view: annotated image, exports, face cards, and per-face actions."""
+
 from __future__ import annotations
 
 import base64
@@ -33,7 +34,11 @@ _MODEL_SUFFIX = re.compile(r"^(?P<value>.+) \((?P<model>[a-z0-9_]+)\)$")
 
 def _model_result_order(row: dict) -> tuple:
     """Sort key grouping rows by feature, with a headline (fused or best) answer ahead of its component models."""
-    return (row["Feature"], row["Model"] not in inference.HEADLINE_MODEL_KEYS, row["Model"])
+    return (
+        row["Feature"],
+        row["Model"] not in inference.HEADLINE_MODEL_KEYS,
+        row["Model"],
+    )
 
 
 def target_card_html(face: dict) -> str:
@@ -66,13 +71,22 @@ def _headline_rows(face: dict) -> list[tuple[str, str, str]]:
 
 def _face_thumbnail(face_rgb: np.ndarray, size: int = 208) -> str:
     """Return a face crop as a square JPEG data URI for the story card."""
-    thumb = cv2.resize(cv2.cvtColor(face_rgb, cv2.COLOR_RGB2BGR), (size, size), interpolation=cv2.INTER_AREA)
-    return "data:image/jpeg;base64," + base64.b64encode(cv2.imencode(".jpg", thumb)[1]).decode("ascii")
+    thumb = cv2.resize(
+        cv2.cvtColor(face_rgb, cv2.COLOR_RGB2BGR),
+        (size, size),
+        interpolation=cv2.INTER_AREA,
+    )
+    return "data:image/jpeg;base64," + base64.b64encode(
+        cv2.imencode(".jpg", thumb)[1]
+    ).decode("ascii")
 
 
 def _card_rows(face: dict) -> list[tuple[str, str, str]]:
     """Return the card's rows, the headline (age when present) first, with number ranges en-dashed."""
-    rows = [(feature, re.sub(r"(?<=\d)-(?=\d)", "\u2013", value), model) for feature, value, model in _headline_rows(face)]
+    rows = [
+        (feature, re.sub(r"(?<=\d)-(?=\d)", "\u2013", value), model)
+        for feature, value, model in _headline_rows(face)
+    ]
     rows.sort(key=lambda row: row[0] != "Age")
     return rows
 
@@ -80,7 +94,11 @@ def _card_rows(face: dict) -> list[tuple[str, str, str]]:
 def _credit(feature: str, model: str) -> str:
     """Return the small escaped "feature · model" credit under an answer, the model name in mono."""
     label = escape(feature.lower())
-    return f'{label} · <span class="credit-model">{escape(model)}</span>' if model else label
+    return (
+        f'{label} · <span class="credit-model">{escape(model)}</span>'
+        if model
+        else label
+    )
 
 
 def face_story_html(face: dict, position: int) -> str:
@@ -102,7 +120,7 @@ def face_story_html(face: dict, position: int) -> str:
     )
     details = ""
     if len(face.get("model_results", [])) > len(rows):
-        details = f'<details><summary>Every model\'s answer</summary>{target_card_html(face)}</details>'
+        details = f"<details><summary>Every model's answer</summary>{target_card_html(face)}</details>"
     return (
         f'<div class="story-card pop-{position % POP_COUNT + 1}" style="--i:{position}">'
         f'{head}{body}<div class="story-rows">{others}{details}</div></div>'
@@ -113,20 +131,39 @@ def share_card_png(face: dict, position: int, theme: str) -> bytes:
     """Return the face's story card as a PNG in the same fill as its on-screen card."""
     tokens = theme_tokens()[resolve_theme(theme)]
     pop = f"pop-{position % POP_COUNT + 1}"
-    return render_share_card(face["image"], f"Face {face['idx']:02d}", _card_rows(face), tokens[pop], tokens[f"{pop}-ink"])
+    return render_share_card(
+        face["image"],
+        f"Face {face['idx']:02d}",
+        _card_rows(face),
+        tokens[pop],
+        tokens[f"{pop}-ink"],
+    )
 
 
-def _summary_html(identifier: str, faces: list[dict], model_count: int, detector: str, *, note: bool) -> str:
+def _summary_html(
+    identifier: str, faces: list[dict], model_count: int, detector: str, *, note: bool
+) -> str:
     """Render the per-image summary strip under the photo: face count, top mood, file and run details."""
-    moods = Counter(value for face in faces for feature, value, _ in _headline_rows(face) if feature == "Emotion")
+    moods = Counter(
+        value
+        for face in faces
+        for feature, value, _ in _headline_rows(face)
+        if feature == "Emotion"
+    )
     noun = "face" if len(faces) == 1 else "faces"
-    caption = f"{noun} found." + (f" Top mood: {escape(moods.most_common(1)[0][0])}." if moods else "")
+    caption = f"{noun} found." + (
+        f" Top mood: {escape(moods.most_common(1)[0][0])}." if moods else ""
+    )
     # Break opportunities after underscores and before the extension keep long names whole on phones.
     name = escape(identifier).replace("_", "_<wbr>").replace(".", "<wbr>.")
     limits = (
-        '<p class="wrap-note">These outputs are model estimates, not biometric proof. '
-        'Do not use them as the sole basis for high-impact decisions.</p>'
-    ) if note else ""
+        (
+            '<p class="wrap-note">These outputs are model estimates, not biometric proof. '
+            "Do not use them as the sole basis for high-impact decisions.</p>"
+        )
+        if note
+        else ""
+    )
     return (
         '<div class="wrap-summary">'
         f'<div class="wrap-count"><span class="wrap-big">{len(faces)}</span>'
@@ -149,7 +186,9 @@ def _hoverable_face_image(frame_bgr: np.ndarray, faces: list[dict]) -> str:
         x1, y1, x2, y2 = face["box"]
         x1, x2 = sorted((max(0, min(x1, width)), max(0, min(x2, width))))
         y1, y2 = sorted((max(0, min(y1, height)), max(0, min(y2, height))))
-        placement = (" place-right" if x1 + x2 > width else "") + (" place-up" if y1 + y2 > height else "")
+        placement = (" place-right" if x1 + x2 > width else "") + (
+            " place-up" if y1 + y2 > height else ""
+        )
         style = f"left:{x1 / width * 100:.4f}%;top:{y1 / height * 100:.4f}%;width:{(x2 - x1) / width * 100:.4f}%;height:{(y2 - y1) / height * 100:.4f}%"
         targets.append(
             f'<div class="face-hover-target{placement}" style="{style}" tabindex="0" '
@@ -160,7 +199,7 @@ def _hoverable_face_image(frame_bgr: np.ndarray, faces: list[dict]) -> str:
     return (
         f'<div class="face-hover-image" style="aspect-ratio:{width}/{height}">'
         f'<img src="data:image/jpeg;base64,{source}" alt="Annotated image with detected faces">'
-        f'{"".join(targets)}</div>'
+        f"{''.join(targets)}</div>"
     )
 
 
@@ -170,17 +209,28 @@ def _show_fullscreen_image(image_rgb: np.ndarray, caption: str) -> None:
     st.image(image_rgb, caption=caption, width="stretch")
 
 
-def _render_bounded_image(image_rgb: np.ndarray, caption: str, key: str, width: int = IMAGE_DISPLAY_WIDTH) -> None:
+def _render_bounded_image(
+    image_rgb: np.ndarray, caption: str, key: str, width: int = IMAGE_DISPLAY_WIDTH
+) -> None:
     """Keep routine output within the viewport while retaining a full-resolution modal view."""
     image_tools, _ = st.columns([1, 12])
     with image_tools:
-        if st.button("Open image", key=f"fullscreen_{key}", help="Open the full-resolution image", width="content"):
+        if st.button(
+            "Open image",
+            key=f"fullscreen_{key}",
+            help="Open the full-resolution image",
+            width="content",
+        ):
             _show_fullscreen_image(image_rgb, caption)
     st.image(image_rgb, caption=caption, width=width)
 
 
 def _render_photo_editor(
-    frame_bgr: np.ndarray, identifier: str, adjustment_key: str, *, theme: str,
+    frame_bgr: np.ndarray,
+    identifier: str,
+    adjustment_key: str,
+    *,
+    theme: str,
 ) -> np.ndarray:
     """Show an "Edit image" toggle that opens a mouse crop and adjustment panel over the source image."""
     cropped_key = f"cropped_photo_{identifier}"
@@ -188,28 +238,42 @@ def _render_photo_editor(
         frame_bgr = st.session_state[cropped_key]
     editing_key = f"photo_editor_{identifier}"
     with st.container(horizontal=True, horizontal_alignment="center"):
-        if st.button("Close editor" if st.session_state.get(editing_key) else "Edit image", key=f"edit_image_{identifier}"):
+        if st.button(
+            "Close editor" if st.session_state.get(editing_key) else "Edit image",
+            key=f"edit_image_{identifier}",
+        ):
             st.session_state[editing_key] = not st.session_state.get(editing_key, False)
             st.rerun()
     editing = st.session_state.get(editing_key, False)
     # The annotated result below already shows the photo, so the source appears only while editing.
-    image_col, editor_col = st.columns([3, 2]) if editing else (nullcontext(), nullcontext())
+    image_col, editor_col = (
+        st.columns([3, 2]) if editing else (nullcontext(), nullcontext())
+    )
     with editor_col:
         if editing:
-            st.caption("Drag the crop rectangle, then adjust the preview before analysis.")
+            st.caption(
+                "Drag the crop rectangle, then adjust the preview before analysis."
+            )
             adjustments = adjustment_sliders(
-                "Adjust the image before detection.", adjustment_key, column_count=1,
+                "Adjust the image before detection.",
+                adjustment_key,
+                column_count=1,
             )
         else:
             adjustments = {
-                name: values[2] for name, values in inference.IMAGE_ADJUSTMENT_RANGES.items()
+                name: values[2]
+                for name, values in inference.IMAGE_ADJUSTMENT_RANGES.items()
             }
     with image_col:
         if editing:
             source = Image.fromarray(cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB))
             cropped = st_cropper(
-                source, realtime_update=True, box_color=theme_accent(theme), aspect_ratio=None,
-                return_type="image", key=f"cropper_{identifier}",
+                source,
+                realtime_update=True,
+                box_color=theme_accent(theme),
+                aspect_ratio=None,
+                return_type="image",
+                key=f"cropper_{identifier}",
             )
             edited_bgr = cv2.cvtColor(np.asarray(cropped), cv2.COLOR_RGB2BGR)
             if st.button("Crop photo", key=f"crop_photo_{identifier}"):
@@ -224,7 +288,9 @@ def _render_photo_editor(
     return edited_bgr
 
 
-def _search_and_save_buttons(face: dict, identifier: str, sidebar: SidebarState) -> None:
+def _search_and_save_buttons(
+    face: dict, identifier: str, sidebar: SidebarState
+) -> None:
     """Render one face's SEARCH (photos and eigenfaces) and SAVE (saved-face database) buttons."""
     col_search, col_save = st.columns(2)
     if col_search.button("Search", key=f"search_btn_{identifier}_{face['idx']}"):
@@ -232,14 +298,17 @@ def _search_and_save_buttons(face: dict, identifier: str, sidebar: SidebarState)
         found = False
         if face["embedding"] is not None and sidebar.search_gallery:
             match = inference.match_face_identity(
-                np.array(face["embedding"], dtype=np.float32), sidebar.search_gallery,
+                np.array(face["embedding"], dtype=np.float32),
+                sidebar.search_gallery,
             )
             if match:
                 st.success(f"Photo match: {match[0]} ({match[1] * 100:.0f}%).")
                 found = True
         eigen_match = inference.match_face_eigenfaces(face_bgr)
         if eigen_match:
-            st.success(f"Eigenface match: saved face {eigen_match[0]} (distance {eigen_match[1]:.0f}).")
+            st.success(
+                f"Eigenface match: saved face {eigen_match[0]} (distance {eigen_match[1]:.0f})."
+            )
             found = True
         if not found:
             st.warning("No match found in saved faces or local reference photos.")
@@ -251,23 +320,38 @@ def _search_and_save_buttons(face: dict, identifier: str, sidebar: SidebarState)
 
 
 def process_and_display(
-    models: Any, sidebar: SidebarState, frame: np.ndarray, identifier: str, *,
-    theme: str, face_adjustments: dict,
+    models: Any,
+    sidebar: SidebarState,
+    frame: np.ndarray,
+    identifier: str,
+    *,
+    theme: str,
+    face_adjustments: dict,
 ) -> None:
     """Run detection/inference on frame and render result in Streamlit."""
     frame = _render_photo_editor(frame, identifier, "global_adj", theme=theme)
 
     active_labels = [
-        name for name, active in (
-            ("age", sidebar.active_age), ("gender", sidebar.active_gender),
-            ("emotion", sidebar.active_emotion), ("race", sidebar.active_race),
-            ("recognition", sidebar.active_recognition), ("glasses", sidebar.active_glasses),
+        name
+        for name, active in (
+            ("age", sidebar.active_age),
+            ("gender", sidebar.active_gender),
+            ("emotion", sidebar.active_emotion),
+            ("race", sidebar.active_race),
+            ("recognition", sidebar.active_recognition),
+            ("glasses", sidebar.active_glasses),
             ("mask", sidebar.active_mask),
-            ("eye color", sidebar.active_eye_color), ("gaze", sidebar.active_gaze),
+            ("eye color", sidebar.active_eye_color),
+            ("gaze", sidebar.active_gaze),
             ("liveness", sidebar.active_liveness),
-        ) if active
+        )
+        if active
     ]
-    spinner_text = f"Analyzing with {', '.join(active_labels)}..." if active_labels else "Detecting faces..."
+    spinner_text = (
+        f"Analyzing with {', '.join(active_labels)}..."
+        if active_labels
+        else "Detecting faces..."
+    )
     demo = is_demo_mode()
     # A demo host shares one process, so analyses queue for a single slot instead of stacking up
     # their peak memory; other modes run them concurrently as before.
@@ -275,15 +359,23 @@ def process_and_display(
     slot = analysis_slot(lambda: busy_notice.info(BUSY_NOTE)) if demo else nullcontext()
     try:
         with slot, st.spinner(spinner_text):
-            frame, was_colorized = inference.maybe_colorize(models, frame, sidebar.active_colorization)
-            annotated_frame, cropped_faces, has_faces, hands_detected = inference.analyze_frame(
-                models, frame,
-                sidebar.to_config(
-                    gallery=st.session_state.get("gallery", {}),
-                    global_adjustments={name: values[2] for name, values in inference.IMAGE_ADJUSTMENT_RANGES.items()},
-                    face_adjustments=face_adjustments,
-                    **box_style(theme),
-                ),
+            frame, was_colorized = inference.maybe_colorize(
+                models, frame, sidebar.active_colorization
+            )
+            annotated_frame, cropped_faces, has_faces, hands_detected = (
+                inference.analyze_frame(
+                    models,
+                    frame,
+                    sidebar.to_config(
+                        gallery=st.session_state.get("gallery", {}),
+                        global_adjustments={
+                            name: values[2]
+                            for name, values in inference.IMAGE_ADJUSTMENT_RANGES.items()
+                        },
+                        face_adjustments=face_adjustments,
+                        **box_style(theme),
+                    ),
+                )
             )
     except DemoBusyError as exc:
         busy_notice.warning(str(exc))
@@ -301,74 +393,128 @@ def process_and_display(
                 f"No face detected in {identifier}. Try a brighter, closer image or lower the confidence threshold."
             )
             _render_bounded_image(
-                cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB), identifier, f"annotated_{identifier}"
+                cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB),
+                identifier,
+                f"annotated_{identifier}",
             )
         return
 
     export_rows = []
     for face in cropped_faces:
-        export_rows.append({
-            key: value for key, value in face.items()
-            if key not in {"image", "embedding", "raw_columns"} and isinstance(value, (str, int, float, bool, list, type(None)))
-        })
+        export_rows.append(
+            {
+                key: value
+                for key, value in face.items()
+                if key not in {"image", "embedding", "raw_columns"}
+                and isinstance(value, (str, int, float, bool, list, type(None)))
+            }
+        )
     export_json = json.dumps(export_rows, indent=2, default=str)
     csv_buffer = io.StringIO()
     if export_rows:
         fieldnames = sorted({key for row in export_rows for key in row})
         writer = csv.DictWriter(csv_buffer, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerows({key: json.dumps(value) if isinstance(value, list) else value for key, value in row.items()} for row in export_rows)
+        writer.writerows(
+            {
+                key: json.dumps(value) if isinstance(value, list) else value
+                for key, value in row.items()
+            }
+            for row in export_rows
+        )
     if sidebar.enable_crowd_count:
-        with st.expander(f"Aggregate summary: {len(cropped_faces)} faces detected", expanded=False):
+        with st.expander(
+            f"Aggregate summary: {len(cropped_faces)} faces detected", expanded=False
+        ):
             aggregate = inference.aggregate_demographics(cropped_faces)
             if not aggregate:
-                st.caption("No age, gender, or race model is active. Enable one to see a breakdown.")
+                st.caption(
+                    "No age, gender, or race model is active. Enable one to see a breakdown."
+                )
             for feature in inference.AGGREGATE_FEATURES:
                 for model_key, counts in aggregate.get(feature, {}).items():
                     st.caption(f"{feature.upper()} ({model_key})")
                     st.bar_chart(counts)
 
     # The annotated photo is the centre of the page; its summary and actions sit in a strip below.
-    st.markdown(_hoverable_face_image(annotated_frame, cropped_faces), unsafe_allow_html=True)
+    st.markdown(
+        _hoverable_face_image(annotated_frame, cropped_faces), unsafe_allow_html=True
+    )
     # The demo's responsible-use banner already says this, so only the full app repeats it here.
     st.markdown(
         _summary_html(
-            identifier, cropped_faces, len(active_labels),
-            display_model_name(sidebar.face_detector), note=not demo,
+            identifier,
+            cropped_faces,
+            len(active_labels),
+            display_model_name(sidebar.face_detector),
+            note=not demo,
         ),
         unsafe_allow_html=True,
     )
     with st.container(horizontal=True, horizontal_alignment="center"):
-        if st.button("Open image", key=f"fullscreen_annotated_{identifier}", help="Open the full-resolution image"):
-            _show_fullscreen_image(cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB), identifier)
+        if st.button(
+            "Open image",
+            key=f"fullscreen_annotated_{identifier}",
+            help="Open the full-resolution image",
+        ):
+            _show_fullscreen_image(
+                cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB), identifier
+            )
         st.download_button(
-            "JSON", export_json, f"{identifier}_results.json", "application/json",
-            key=f"json_dl_{identifier}", icon=":material/download:",
+            "JSON",
+            export_json,
+            f"{identifier}_results.json",
+            "application/json",
+            key=f"json_dl_{identifier}",
+            icon=":material/download:",
         )
         st.download_button(
-            "CSV", csv_buffer.getvalue(), f"{identifier}_results.csv", "text/csv",
-            key=f"csv_dl_{identifier}", icon=":material/download:",
+            "CSV",
+            csv_buffer.getvalue(),
+            f"{identifier}_results.csv",
+            "text/csv",
+            key=f"csv_dl_{identifier}",
+            icon=":material/download:",
         )
-    st.markdown('<p class="wrap-note">Hover or tap a numbered box on the photo for that face\'s answers.</p>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="wrap-note">Hover or tap a numbered box on the photo for that face\'s answers.</p>',
+        unsafe_allow_html=True,
+    )
 
     st.markdown('<h2 class="wrap-section">Face by face</h2>', unsafe_allow_html=True)
 
     # Demo mode hides every action that reads or writes the saved-face database or galleries,
     # which a public deployment would share across visitors.
-    if not demo and st.button("Scan all faces for recognition", key=f"scan_btn_{identifier}"):
-        faces_bgr = [cv2.cvtColor(face["image"], cv2.COLOR_RGB2BGR) for face in cropped_faces]
+    if not demo and st.button(
+        "Scan all faces for recognition", key=f"scan_btn_{identifier}"
+    ):
+        faces_bgr = [
+            cv2.cvtColor(face["image"], cv2.COLOR_RGB2BGR) for face in cropped_faces
+        ]
         matches = inference.match_faces_eigenfaces_batch(faces_bgr)
         scan_frame = frame.copy()
-        inference.draw_recognition_scan(scan_frame, [(face["box"], match is not None) for face, match in zip(cropped_faces, matches, strict=False)])
+        inference.draw_recognition_scan(
+            scan_frame,
+            [
+                (face["box"], match is not None)
+                for face, match in zip(cropped_faces, matches, strict=False)
+            ],
+        )
         _render_bounded_image(
-            cv2.cvtColor(scan_frame, cv2.COLOR_BGR2RGB), "Recognition scan", f"scan_{identifier}"
+            cv2.cvtColor(scan_frame, cv2.COLOR_BGR2RGB),
+            "Recognition scan",
+            f"scan_{identifier}",
         )
 
         recognized_count = sum(match is not None for match in matches)
-        st.caption(f"Recognition scan complete: {recognized_count}/{len(matches)} faces matched in saved faces.")
+        st.caption(
+            f"Recognition scan complete: {recognized_count}/{len(matches)} faces matched in saved faces."
+        )
         for face, match in zip(cropped_faces, matches, strict=False):
             if match:
-                st.text(f"#{face['idx']}: Recognized -- saved face ID {match[0]} (distance {match[1]:.0f})")
+                st.text(
+                    f"#{face['idx']}: Recognized -- saved face ID {match[0]} (distance {match[1]:.0f})"
+                )
             else:
                 st.text(f"#{face['idx']}: Unrecognized")
 
@@ -384,18 +530,28 @@ def process_and_display(
             st.session_state.setdefault(face_editor_open_key, False)
             with st.container(horizontal=True):
                 st.download_button(
-                    "Save card", share_card_png(face, i, theme), f"face_{face['idx']:02d}_card.png", "image/png",
-                    key=f"card_dl_{identifier}_{face['idx']}", icon=":material/ios_share:",
+                    "Save card",
+                    share_card_png(face, i, theme),
+                    f"face_{face['idx']:02d}_card.png",
+                    "image/png",
+                    key=f"card_dl_{identifier}_{face['idx']}",
+                    icon=":material/ios_share:",
                 )
                 if st.button(
-                    "Close editor" if st.session_state[face_editor_open_key] else "Edit face",
+                    "Close editor"
+                    if st.session_state[face_editor_open_key]
+                    else "Edit face",
                     key=f"edit_face_toggle_{identifier}_{face['idx']}",
                 ):
-                    st.session_state[face_editor_open_key] = not st.session_state[face_editor_open_key]
+                    st.session_state[face_editor_open_key] = not st.session_state[
+                        face_editor_open_key
+                    ]
                     st.rerun()
             # The card already shows the crop; the editor opens a full-size preview beside its controls.
             face_preview_col, face_editor_col = (
-                st.columns([3, 2]) if st.session_state[face_editor_open_key] else (nullcontext(), nullcontext())
+                st.columns([3, 2])
+                if st.session_state[face_editor_open_key]
+                else (nullcontext(), nullcontext())
             )
             op_key = f"image_op_result_{identifier}_{face['idx']}"
             with face_editor_col:
@@ -407,109 +563,194 @@ def process_and_display(
                     )
                 else:
                     individual_adjustments = {
-                        name: values[2] for name, values in inference.IMAGE_ADJUSTMENT_RANGES.items()
+                        name: values[2]
+                        for name, values in inference.IMAGE_ADJUSTMENT_RANGES.items()
                     }
                 edited_face_bgr = (
                     inference.apply_image_adjustments(face_bgr, individual_adjustments)
-                    if any(individual_adjustments.values()) else face_bgr
+                    if any(individual_adjustments.values())
+                    else face_bgr
                 )
                 if st.session_state[face_editor_open_key]:
                     st.download_button(
-                        "Download edited face", cv2.imencode(".png", edited_face_bgr)[1].tobytes(),
-                        file_name=f"face_{face['idx']}_edited.png", mime="image/png",
+                        "Download edited face",
+                        cv2.imencode(".png", edited_face_bgr)[1].tobytes(),
+                        file_name=f"face_{face['idx']}_edited.png",
+                        mime="image/png",
                         key=f"face_edit_dl_{identifier}_{face['idx']}",
                     )
 
-                    op = st.selectbox("Image operation", inference.IMAGE_OP_OPTIONS, key=f"image_op_{identifier}_{face['idx']}")
+                    op = st.selectbox(
+                        "Image operation",
+                        inference.IMAGE_OP_OPTIONS,
+                        key=f"image_op_{identifier}_{face['idx']}",
+                    )
                     op_params = {}
                     if op == "intensity":
-                        op_params["method"] = st.selectbox("Intensity method", inference.INTENSITY_METHODS,
-                                                            key=f"intensity_method_{identifier}_{face['idx']}")
+                        op_params["method"] = st.selectbox(
+                            "Intensity method",
+                            inference.INTENSITY_METHODS,
+                            key=f"intensity_method_{identifier}_{face['idx']}",
+                        )
                     elif op == "sharpen":
-                        op_params["method"] = st.selectbox("Sharpen method", inference.SHARPEN_METHODS,
-                                                            key=f"sharpen_method_{identifier}_{face['idx']}")
+                        op_params["method"] = st.selectbox(
+                            "Sharpen method",
+                            inference.SHARPEN_METHODS,
+                            key=f"sharpen_method_{identifier}_{face['idx']}",
+                        )
                     elif op == "denoise":
-                        op_params["method"] = st.selectbox("Denoise method", inference.DENOISE_METHODS,
-                                                            key=f"denoise_method_{identifier}_{face['idx']}")
-                    if st.button("Apply image operation", key=f"image_op_btn_{identifier}_{face['idx']}"):
-                        st.session_state[op_key] = inference.apply_image_op(edited_face_bgr, op, **op_params)
+                        op_params["method"] = st.selectbox(
+                            "Denoise method",
+                            inference.DENOISE_METHODS,
+                            key=f"denoise_method_{identifier}_{face['idx']}",
+                        )
+                    if st.button(
+                        "Apply image operation",
+                        key=f"image_op_btn_{identifier}_{face['idx']}",
+                    ):
+                        st.session_state[op_key] = inference.apply_image_op(
+                            edited_face_bgr, op, **op_params
+                        )
             with face_preview_col:
                 if st.session_state[face_editor_open_key]:
                     _render_bounded_image(
-                        cv2.cvtColor(edited_face_bgr, cv2.COLOR_BGR2RGB), f"Face {face['idx']:02d}",
-                        f"face_{identifier}_{face['idx']}", width=360,
+                        cv2.cvtColor(edited_face_bgr, cv2.COLOR_BGR2RGB),
+                        f"Face {face['idx']:02d}",
+                        f"face_{identifier}_{face['idx']}",
+                        width=360,
                     )
-                if st.session_state[face_editor_open_key] and op_key in st.session_state:
+                if (
+                    st.session_state[face_editor_open_key]
+                    and op_key in st.session_state
+                ):
                     result = st.session_state[op_key]
                     _render_bounded_image(
-                        cv2.cvtColor(result, cv2.COLOR_BGR2RGB), "Processed face",
-                        f"processed_face_{identifier}_{face['idx']}", width=360,
+                        cv2.cvtColor(result, cv2.COLOR_BGR2RGB),
+                        "Processed face",
+                        f"processed_face_{identifier}_{face['idx']}",
+                        width=360,
                     )
-                    st.download_button("Download face PNG", cv2.imencode(".png", result)[1].tobytes(),
-                                       file_name=f"face_{face['idx']}_processed.png", mime="image/png",
-                                       key=f"image_op_dl_{identifier}_{face['idx']}")
+                    st.download_button(
+                        "Download face PNG",
+                        cv2.imencode(".png", result)[1].tobytes(),
+                        file_name=f"face_{face['idx']}_processed.png",
+                        mime="image/png",
+                        key=f"image_op_dl_{identifier}_{face['idx']}",
+                    )
 
             if not demo:
                 _search_and_save_buttons(face, identifier, sidebar)
 
             lbph_available = models.recognition_nets.get("lbph") is not None
             can_enroll = not demo and (face["embedding"] is not None or lbph_available)
-            has_more_actions = can_enroll or models.reconstruction_3d_nets or models.age_progression_nets
+            has_more_actions = (
+                can_enroll
+                or models.reconstruction_3d_nets
+                or models.age_progression_nets
+            )
             if has_more_actions:
                 with st.expander("More actions", expanded=False):
                     if can_enroll:
-                        enroll_name = st.text_input("Enroll as", key=f"enroll_name_{identifier}_{face['idx']}", placeholder="Enter a saved face name")
-                        if st.button("Enroll", key=f"enroll_btn_{identifier}_{face['idx']}") and enroll_name:
+                        enroll_name = st.text_input(
+                            "Enroll as",
+                            key=f"enroll_name_{identifier}_{face['idx']}",
+                            placeholder="Enter a saved face name",
+                        )
+                        if (
+                            st.button(
+                                "Enroll", key=f"enroll_btn_{identifier}_{face['idx']}"
+                            )
+                            and enroll_name
+                        ):
                             try:
-                                safe_name = inference.validate_lbph_name(enroll_name) if lbph_available else enroll_name.strip()
+                                safe_name = (
+                                    inference.validate_lbph_name(enroll_name)
+                                    if lbph_available
+                                    else enroll_name.strip()
+                                )
                                 if not safe_name:
                                     raise ValueError("Enrollment name cannot be empty.")
                                 if face["embedding"] is not None:
-                                    st.session_state["gallery"][safe_name] = np.array(face["embedding"], dtype=np.float32)
+                                    st.session_state["gallery"][safe_name] = np.array(
+                                        face["embedding"], dtype=np.float32
+                                    )
                                     inference.save_gallery(st.session_state["gallery"])
                                 if lbph_available:
-                                    inference.enroll_lbph_face(safe_name, cv2.cvtColor(face["image"], cv2.COLOR_RGB2BGR))
+                                    inference.enroll_lbph_face(
+                                        safe_name,
+                                        cv2.cvtColor(face["image"], cv2.COLOR_RGB2BGR),
+                                    )
                                 st.rerun()
                             except ValueError as exc:
                                 st.error(f"Could not enroll face: {exc}")
 
                     if models.reconstruction_3d_nets:
-                        if st.button("Create 3D reconstruction", key=f"recon3d_btn_{identifier}_{face['idx']}"):
+                        if st.button(
+                            "Create 3D reconstruction",
+                            key=f"recon3d_btn_{identifier}_{face['idx']}",
+                        ):
                             face_bgr = cv2.cvtColor(face["image"], cv2.COLOR_RGB2BGR)
                             result = inference.run_3d_reconstruction(models, face_bgr)
                             if result is None:
-                                st.warning("No reconstruction available. Face landmarks were not found in this crop.")
+                                st.warning(
+                                    "No reconstruction available. Face landmarks were not found in this crop."
+                                )
                             else:
                                 vertices, faces, colors = result
-                                obj_text = inference.mesh_to_obj_str(vertices, faces, colors)
+                                obj_text = inference.mesh_to_obj_str(
+                                    vertices, faces, colors
+                                )
                                 st.download_button(
-                                    "Download 3D mesh (.obj)", data=obj_text, file_name=f"face_{identifier}_{face['idx']}.obj",
-                                    mime="text/plain", key=f"recon3d_dl_{identifier}_{face['idx']}",
+                                    "Download 3D mesh (.obj)",
+                                    data=obj_text,
+                                    file_name=f"face_{identifier}_{face['idx']}.obj",
+                                    mime="text/plain",
+                                    key=f"recon3d_dl_{identifier}_{face['idx']}",
                                 )
 
                     if models.age_progression_nets:
-                        st.caption("Age progression is for non-commercial research use only.")
+                        st.caption(
+                            "Age progression is for non-commercial research use only."
+                        )
                         col_src_age, col_tgt_age = st.columns(2)
                         source_age = col_src_age.number_input(
-                            "Source age", min_value=0, max_value=100, value=30,
+                            "Source age",
+                            min_value=0,
+                            max_value=100,
+                            value=30,
                             key=f"reage_src_{identifier}_{face['idx']}",
                         )
                         target_age = col_tgt_age.number_input(
-                            "Target age", min_value=0, max_value=100, value=60,
+                            "Target age",
+                            min_value=0,
+                            max_value=100,
+                            value=60,
                             key=f"reage_tgt_{identifier}_{face['idx']}",
                         )
-                        if st.button("Run age progression", key=f"reage_btn_{identifier}_{face['idx']}"):
+                        if st.button(
+                            "Run age progression",
+                            key=f"reage_btn_{identifier}_{face['idx']}",
+                        ):
                             face_bgr = cv2.cvtColor(face["image"], cv2.COLOR_RGB2BGR)
-                            aged_bgr = inference.run_age_progression(models, face_bgr, source_age, target_age)
-                            st.session_state[f"reage_result_{identifier}_{face['idx']}"] = aged_bgr
+                            aged_bgr = inference.run_age_progression(
+                                models, face_bgr, source_age, target_age
+                            )
+                            st.session_state[
+                                f"reage_result_{identifier}_{face['idx']}"
+                            ] = aged_bgr
                         result_key = f"reage_result_{identifier}_{face['idx']}"
                         if result_key in st.session_state:
                             aged_bgr = st.session_state[result_key]
                             col_before, col_after = st.columns(2)
                             col_before.image(face["image"], caption="Before")
-                            col_after.image(cv2.cvtColor(aged_bgr, cv2.COLOR_BGR2RGB), caption="After")
+                            col_after.image(
+                                cv2.cvtColor(aged_bgr, cv2.COLOR_BGR2RGB),
+                                caption="After",
+                            )
                             st.download_button(
-                                "Download aged face", cv2.imencode(".png", aged_bgr)[1].tobytes(),
-                                file_name=f"face_{identifier}_{face['idx']}_aged.png", mime="image/png",
+                                "Download aged face",
+                                cv2.imencode(".png", aged_bgr)[1].tobytes(),
+                                file_name=f"face_{identifier}_{face['idx']}_aged.png",
+                                mime="image/png",
                                 key=f"reage_dl_{identifier}_{face['idx']}",
                             )

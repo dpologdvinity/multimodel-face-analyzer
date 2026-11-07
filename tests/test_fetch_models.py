@@ -1,4 +1,5 @@
 """Offline tests for models/manifest.json and tools/fetch_models.py."""
+
 import hashlib
 import http.client
 import importlib.util
@@ -16,20 +17,40 @@ import pytest
 from face_analyzer.core import constants as C
 
 ROOT = Path(__file__).resolve().parents[1]
-_SPEC = importlib.util.spec_from_file_location("fetch_models", ROOT / "tools" / "fetch_models.py")
+_SPEC = importlib.util.spec_from_file_location(
+    "fetch_models", ROOT / "tools" / "fetch_models.py"
+)
 fetch_models = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(fetch_models)
 
 MANIFEST = ROOT / "models" / "manifest.json"
 DOCKER_ARGS = {
-    "AGE_MODEL", "GENDER_MODEL", "EMOTION_MODEL", "RACE_MODEL", "FACE_LANDMARKS_MODEL",
-    "LIVENESS_MODEL", "RECOGNITION_MODEL", "GLASSES_MODEL", "MASK_MODEL", "COLORIZATION_MODEL",
-    "HAND_MODEL", "RECONSTRUCTION_3D_MODEL", "YOLO_FACE_MODEL", "SCRFD_FACE_MODEL",
-    "RETINAFACE_MODEL", "AGE_PROGRESSION_MODEL",
+    "AGE_MODEL",
+    "GENDER_MODEL",
+    "EMOTION_MODEL",
+    "RACE_MODEL",
+    "FACE_LANDMARKS_MODEL",
+    "LIVENESS_MODEL",
+    "RECOGNITION_MODEL",
+    "GLASSES_MODEL",
+    "MASK_MODEL",
+    "COLORIZATION_MODEL",
+    "HAND_MODEL",
+    "RECONSTRUCTION_3D_MODEL",
+    "YOLO_FACE_MODEL",
+    "SCRFD_FACE_MODEL",
+    "RETINAFACE_MODEL",
+    "AGE_PROGRESSION_MODEL",
 }
 
 
-def _entry(path: str, payload: bytes, source: str = "upstream", url: str = "https://example.invalid/x", **extra):
+def _entry(
+    path: str,
+    payload: bytes,
+    source: str = "upstream",
+    url: str = "https://example.invalid/x",
+    **extra,
+):
     """Build a manifest entry describing payload."""
     entry = {
         "path": path,
@@ -79,7 +100,10 @@ def test_manifest_entries_validate_and_are_unique():
     for entry in entries:
         assert set(entry["models"]) <= DOCKER_ARGS, entry["path"]
         if entry["source"] == "hf":
-            assert entry["url"] == f"https://huggingface.co/{data['hf_repo']}/resolve/{revision}/{entry['path']}"
+            assert (
+                entry["url"]
+                == f"https://huggingface.co/{data['hf_repo']}/resolve/{revision}/{entry['path']}"
+            )
         if entry["source"] != "manual":
             assert "instructions" not in entry
 
@@ -89,7 +113,11 @@ def test_every_model_path_load_models_uses_has_a_manifest_entry():
     model_dir = C.MODEL_DIR.resolve()
     expected = set()
     for value in vars(C).values():
-        if isinstance(value, Path) and value.suffix and model_dir in value.resolve().parents:
+        if (
+            isinstance(value, Path)
+            and value.suffix
+            and model_dir in value.resolve().parents
+        ):
             expected.add(value.resolve().relative_to(model_dir).as_posix())
     assert expected, "no model paths found in core/constants.py"
     assert expected <= {entry["path"] for entry in _real_manifest()}
@@ -129,13 +157,23 @@ def test_validate_entry_requires_instructions_for_manual():
 def test_select_entries_matches_arg_pairs_bare_keys_and_required():
     entries = [
         _entry("ssd.pb", b"1", models={}, required=True),
-        _entry("fairface.onnx", b"2", models={"AGE_MODEL": "fairface", "RACE_MODEL": "fairface"}),
+        _entry(
+            "fairface.onnx",
+            b"2",
+            models={"AGE_MODEL": "fairface", "RACE_MODEL": "fairface"},
+        ),
         _entry("caffe_age.caffemodel", b"3", models={"AGE_MODEL": "caffe"}),
         _entry("caffe_gender.caffemodel", b"4", models={"GENDER_MODEL": "caffe"}),
         _entry("ferplus.onnx", b"5", models={"EMOTION_MODEL": "ferplus"}),
     ]
-    picked = fetch_models.select_entries(entries, ["AGE_MODEL=caffe", "RACE_MODEL=fairface", "GENDER_MODEL="], False)
-    assert [e["path"] for e in picked] == ["ssd.pb", "fairface.onnx", "caffe_age.caffemodel"]
+    picked = fetch_models.select_entries(
+        entries, ["AGE_MODEL=caffe", "RACE_MODEL=fairface", "GENDER_MODEL="], False
+    )
+    assert [e["path"] for e in picked] == [
+        "ssd.pb",
+        "fairface.onnx",
+        "caffe_age.caffemodel",
+    ]
     picked = fetch_models.select_entries(entries, ["ferplus"], False)
     assert [e["path"] for e in picked] == ["ssd.pb", "ferplus.onnx"]
     assert fetch_models.select_entries(entries, [], True) == entries
@@ -148,7 +186,9 @@ def test_download_verifies_and_moves_into_place(tmp_path, http_root, source):
     (served / "w.onnx").write_bytes(payload)
     model_dir = tmp_path / "models"
 
-    status = fetch_models.fetch_entry(_entry("sub/w.onnx", payload, source=source, url=f"{base}/w.onnx"), model_dir)
+    status = fetch_models.fetch_entry(
+        _entry("sub/w.onnx", payload, source=source, url=f"{base}/w.onnx"), model_dir
+    )
 
     assert status == "downloaded"
     assert (model_dir / "sub" / "w.onnx").read_bytes() == payload
@@ -161,16 +201,22 @@ def test_sha256_mismatch_fails_and_leaves_nothing_behind(tmp_path, http_root):
     model_dir = tmp_path / "models"
 
     with pytest.raises(fetch_models.FetchError, match="sha256 mismatch"):
-        fetch_models.fetch_entry(_entry("w.onnx", b"expected", url=f"{base}/w.onnx"), model_dir)
+        fetch_models.fetch_entry(
+            _entry("w.onnx", b"expected", url=f"{base}/w.onnx"), model_dir
+        )
     assert list(model_dir.iterdir()) == []
 
 
 def test_main_exits_nonzero_on_mismatch(tmp_path, monkeypatch):
-    monkeypatch.setattr(fetch_models.urllib.request, "urlopen", lambda *a, **k: io.BytesIO(b"tampered"))
+    monkeypatch.setattr(
+        fetch_models.urllib.request, "urlopen", lambda *a, **k: io.BytesIO(b"tampered")
+    )
     manifest = tmp_path / "manifest.json"
     manifest.write_text(json.dumps({"files": [_entry("w.onnx", b"expected")]}))
 
-    code = fetch_models.main(["--all", "--manifest", str(manifest), "--model-dir", str(tmp_path / "m")])
+    code = fetch_models.main(
+        ["--all", "--manifest", str(manifest), "--model-dir", str(tmp_path / "m")]
+    )
 
     assert code == 1
 
@@ -179,7 +225,11 @@ def test_existing_file_with_right_hash_is_skipped(tmp_path, monkeypatch):
     model_dir = tmp_path / "models"
     model_dir.mkdir()
     (model_dir / "w.onnx").write_bytes(b"good")
-    monkeypatch.setattr(fetch_models.urllib.request, "urlopen", lambda *a, **k: pytest.fail("no download expected"))
+    monkeypatch.setattr(
+        fetch_models.urllib.request,
+        "urlopen",
+        lambda *a, **k: pytest.fail("no download expected"),
+    )
 
     assert fetch_models.fetch_entry(_entry("w.onnx", b"good"), model_dir) == "ok"
 
@@ -214,7 +264,9 @@ def test_partial_download_resumes_with_range_request(tmp_path, monkeypatch):
 
     monkeypatch.setattr(fetch_models.urllib.request, "urlopen", fake_urlopen)
 
-    assert fetch_models.fetch_entry(_entry("w.onnx", payload), model_dir) == "downloaded"
+    assert (
+        fetch_models.fetch_entry(_entry("w.onnx", payload), model_dir) == "downloaded"
+    )
     assert seen["range"] == "bytes=120-"
     assert (model_dir / "w.onnx").read_bytes() == payload
 
@@ -235,7 +287,11 @@ def test_truncated_download_keeps_part_and_rerun_resumes(tmp_path, monkeypatch):
     payload = b"abcdefghij" * 40
     model_dir = tmp_path / "models"
     entry = _entry("w.onnx", payload)
-    monkeypatch.setattr(fetch_models.urllib.request, "urlopen", lambda request, timeout: _TruncatedResponse(payload[:150]))
+    monkeypatch.setattr(
+        fetch_models.urllib.request,
+        "urlopen",
+        lambda request, timeout: _TruncatedResponse(payload[:150]),
+    )
 
     with pytest.raises(fetch_models.FetchError, match="rerun to resume"):
         fetch_models.fetch_entry(entry, model_dir)
@@ -251,14 +307,21 @@ def test_truncated_download_keeps_part_and_rerun_resumes(tmp_path, monkeypatch):
 
     monkeypatch.setattr(fetch_models.urllib.request, "urlopen", resume)
     assert fetch_models.fetch_entry(entry, model_dir) == "downloaded"
-    assert hashlib.sha256((model_dir / "w.onnx").read_bytes()).hexdigest() == entry["sha256"]
+    assert (
+        hashlib.sha256((model_dir / "w.onnx").read_bytes()).hexdigest()
+        == entry["sha256"]
+    )
     assert not (model_dir / "w.onnx.part").exists()
 
 
 def test_short_download_without_error_is_kept_as_incomplete(tmp_path, monkeypatch):
     payload = b"0123456789" * 10
     model_dir = tmp_path / "models"
-    monkeypatch.setattr(fetch_models.urllib.request, "urlopen", lambda request, timeout: io.BytesIO(payload[:40]))
+    monkeypatch.setattr(
+        fetch_models.urllib.request,
+        "urlopen",
+        lambda request, timeout: io.BytesIO(payload[:40]),
+    )
 
     with pytest.raises(fetch_models.FetchError, match="incomplete"):
         fetch_models.fetch_entry(_entry("w.onnx", payload), model_dir)
@@ -275,12 +338,16 @@ def test_http_error_on_resume_restarts_without_range(tmp_path, monkeypatch):
     def fake_urlopen(request, timeout):
         ranges.append(request.get_header("Range"))
         if request.get_header("Range"):
-            raise urllib.error.HTTPError(request.full_url, 500, "Server Error", {}, None)
+            raise urllib.error.HTTPError(
+                request.full_url, 500, "Server Error", {}, None
+            )
         return io.BytesIO(payload)
 
     monkeypatch.setattr(fetch_models.urllib.request, "urlopen", fake_urlopen)
 
-    assert fetch_models.fetch_entry(_entry("w.onnx", payload), model_dir) == "downloaded"
+    assert (
+        fetch_models.fetch_entry(_entry("w.onnx", payload), model_dir) == "downloaded"
+    )
     assert ranges == ["bytes=35-", None]
     assert (model_dir / "w.onnx").read_bytes() == payload
 
@@ -294,11 +361,15 @@ def test_http_416_with_complete_part_is_hashed_not_refetched(tmp_path, monkeypat
 
     def fake_urlopen(request, timeout):
         calls.append(request.get_header("Range"))
-        raise urllib.error.HTTPError(request.full_url, 416, "Range Not Satisfiable", {}, None)
+        raise urllib.error.HTTPError(
+            request.full_url, 416, "Range Not Satisfiable", {}, None
+        )
 
     monkeypatch.setattr(fetch_models.urllib.request, "urlopen", fake_urlopen)
 
-    assert fetch_models.fetch_entry(_entry("w.onnx", payload), model_dir) == "downloaded"
+    assert (
+        fetch_models.fetch_entry(_entry("w.onnx", payload), model_dir) == "downloaded"
+    )
     assert calls == [f"bytes={len(payload)}-"]
     assert (model_dir / "w.onnx").read_bytes() == payload
 
@@ -313,12 +384,20 @@ def test_main_continues_after_a_failed_entry(tmp_path, monkeypatch):
 
     monkeypatch.setattr(fetch_models.urllib.request, "urlopen", fake_urlopen)
     manifest = tmp_path / "manifest.json"
-    manifest.write_text(json.dumps({"files": [
-        _entry("a.onnx", b"x", url="https://example.invalid/bad"),
-        _entry("b.onnx", good, url="https://example.invalid/good"),
-    ]}))
+    manifest.write_text(
+        json.dumps(
+            {
+                "files": [
+                    _entry("a.onnx", b"x", url="https://example.invalid/bad"),
+                    _entry("b.onnx", good, url="https://example.invalid/good"),
+                ]
+            }
+        )
+    )
 
-    code = fetch_models.main(["--all", "--manifest", str(manifest), "--model-dir", str(tmp_path / "m")])
+    code = fetch_models.main(
+        ["--all", "--manifest", str(manifest), "--model-dir", str(tmp_path / "m")]
+    )
 
     assert code == 1
     assert (tmp_path / "m" / "b.onnx").read_bytes() == good
@@ -329,7 +408,9 @@ def test_archive_member_with_wrong_size_is_rejected(tmp_path, http_root):
     with zipfile.ZipFile(served / "pack.zip", "w") as archive:
         archive.writestr("pack/det.onnx", b"a different export")
     model_dir = tmp_path / "models"
-    entry = _entry("det.onnx", b"expected", url=f"{base}/pack.zip", archive_member="pack/det.onnx")
+    entry = _entry(
+        "det.onnx", b"expected", url=f"{base}/pack.zip", archive_member="pack/det.onnx"
+    )
 
     with pytest.raises(fetch_models.FetchError, match="bytes, expected"):
         fetch_models.fetch_entry(entry, model_dir)
@@ -343,20 +424,39 @@ def test_archive_member_is_extracted_and_verified(tmp_path, http_root):
         archive.writestr("pack/det.onnx", payload)
         archive.writestr("pack/other.onnx", b"unused")
     model_dir = tmp_path / "models"
-    entry = _entry("det.onnx", payload, url=f"{base}/pack.zip", archive_member="pack/det.onnx")
+    entry = _entry(
+        "det.onnx", payload, url=f"{base}/pack.zip", archive_member="pack/det.onnx"
+    )
 
     assert fetch_models.fetch_entry(entry, model_dir) == "downloaded"
     assert sorted(p.name for p in model_dir.iterdir()) == ["det.onnx"]
     assert (model_dir / "det.onnx").read_bytes() == payload
 
 
-def test_manual_entry_prints_instructions_without_failing(tmp_path, capsys, monkeypatch):
-    monkeypatch.setattr(fetch_models.urllib.request, "urlopen", lambda *a, **k: pytest.fail("no download expected"))
+def test_manual_entry_prints_instructions_without_failing(
+    tmp_path, capsys, monkeypatch
+):
+    monkeypatch.setattr(
+        fetch_models.urllib.request,
+        "urlopen",
+        lambda *a, **k: pytest.fail("no download expected"),
+    )
     model_dir = tmp_path / "models"
     manifest = tmp_path / "manifest.json"
-    manifest.write_text(json.dumps({"files": [_entry("byo.pth", b"secret", source="manual")]}))
+    manifest.write_text(
+        json.dumps({"files": [_entry("byo.pth", b"secret", source="manual")]})
+    )
 
-    code = fetch_models.main(["--keys", "AGE_MODEL=test", "--manifest", str(manifest), "--model-dir", str(model_dir)])
+    code = fetch_models.main(
+        [
+            "--keys",
+            "AGE_MODEL=test",
+            "--manifest",
+            str(manifest),
+            "--model-dir",
+            str(model_dir),
+        ]
+    )
 
     err = capsys.readouterr().err
     assert code == 0
@@ -369,7 +469,12 @@ def test_manual_entry_with_different_file_only_warns(tmp_path, capsys):
     model_dir.mkdir()
     (model_dir / "byo.pth").write_bytes(b"my own conversion")
 
-    assert fetch_models.fetch_entry(_entry("byo.pth", b"secret", source="manual"), model_dir) == "ok"
+    assert (
+        fetch_models.fetch_entry(
+            _entry("byo.pth", b"secret", source="manual"), model_dir
+        )
+        == "ok"
+    )
     assert "differs" in capsys.readouterr().err
 
 

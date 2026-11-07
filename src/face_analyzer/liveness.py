@@ -1,4 +1,5 @@
 """Small, model-free liveness signals used by the face analysis pipeline."""
+
 from __future__ import annotations
 
 import threading
@@ -39,7 +40,9 @@ class _TrackState:
     blink_count: int = 0
 
 
-def _axis_differences(gray: Sequence[Sequence[float]], step: int) -> tuple[list[float], list[float]]:
+def _axis_differences(
+    gray: Sequence[Sequence[float]], step: int
+) -> tuple[list[float], list[float]]:
     """Compute pixel differences along adjacent and periodic step offsets.
 
     Returns (adjacent_diffs, periodic_diffs) for horizontal and vertical axes.
@@ -94,7 +97,9 @@ def blink_score_from_landmarker(result) -> float | None:
         for item in blendshapes
         if getattr(item, "category_name", None) in {"eyeBlinkLeft", "eyeBlinkRight"}
     }
-    values = [scores[name] for name in ("eyeBlinkLeft", "eyeBlinkRight") if name in scores]
+    values = [
+        scores[name] for name in ("eyeBlinkLeft", "eyeBlinkRight") if name in scores
+    ]
     return fmean(values) if values else None
 
 
@@ -113,7 +118,9 @@ def _make_result(
     else:
         status = "INCONCLUSIVE"
     blink_rate = blink_count * 60.0 / elapsed if elapsed and elapsed > 0 else None
-    return LivenessResult(status, blink_count, blink_rate, texture_score, texture_artifact)
+    return LivenessResult(
+        status, blink_count, blink_rate, texture_score, texture_artifact
+    )
 
 
 def assess_static_liveness(texture_score: float) -> LivenessResult:
@@ -160,7 +167,9 @@ class LivenessTracker:
                 state.eye_closed = is_closed
             state.last_seen = timestamp
             elapsed = timestamp - state.first_seen
-            return _make_result(state.blink_count, elapsed, texture_score, self._texture_threshold)
+            return _make_result(
+                state.blink_count, elapsed, texture_score, self._texture_threshold
+            )
 
     def reset(self) -> None:
         """Clear all tracked face states."""

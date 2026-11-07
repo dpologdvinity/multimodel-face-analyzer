@@ -1,4 +1,5 @@
 """Pipeline analyzer orchestrating multi-face detection, attribute prediction, fusion, and drawing."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -45,13 +46,19 @@ def analyze_frame(
     annotated_frame = frame.copy()
     face_boxes, face_landmarks = _detect(models, frame, config)
     tracker = config.tracker
-    track_ids = tracker.update(face_boxes) if tracker is not None else [None] * len(face_boxes)
+    track_ids = (
+        tracker.update(face_boxes) if tracker is not None else [None] * len(face_boxes)
+    )
     hands_detected = _run_whole_frame_features(models, frame, annotated_frame, config)
     shared = _frame_inputs(models, config)
 
     cropped_faces = []
-    for idx, (box, track_id, landmarks) in enumerate(zip(face_boxes, track_ids, face_landmarks, strict=False), 1):
-        analysis = _analyze_face(models, frame, box, track_id, config, shared, landmarks)
+    for idx, (box, track_id, landmarks) in enumerate(
+        zip(face_boxes, track_ids, face_landmarks, strict=False), 1
+    ):
+        analysis = _analyze_face(
+            models, frame, box, track_id, config, shared, landmarks
+        )
         if analysis is None:
             continue
         _annotate(models, annotated_frame, idx, analysis, config)
@@ -63,16 +70,20 @@ def analyze_frame(
 AGGREGATE_FEATURES = ("age", "gender", "race")
 
 
-def aggregate_demographics(cropped_faces: list[dict]) -> dict[str, dict[str, dict[str, int]]]:
+def aggregate_demographics(
+    cropped_faces: list[dict],
+) -> dict[str, dict[str, dict[str, int]]]:
     """Whole-image demographic aggregate over already-computed per-face results."""
-    totals: dict[str, dict[str, dict[str, int]]] = {feature: {} for feature in AGGREGATE_FEATURES}
+    totals: dict[str, dict[str, dict[str, int]]] = {
+        feature: {} for feature in AGGREGATE_FEATURES
+    }
     for face in cropped_faces:
         for column, value in face["raw_columns"].items():
             for feature in AGGREGATE_FEATURES:
                 prefix = f"{feature}_"
                 if not column.startswith(prefix) or not value:
                     continue
-                model_key = column[len(prefix):]
+                model_key = column[len(prefix) :]
                 bucket = totals[feature].setdefault(model_key, {})
                 bucket[value] = bucket.get(value, 0) + 1
     return {feature: models for feature, models in totals.items() if models}

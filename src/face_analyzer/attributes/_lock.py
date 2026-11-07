@@ -1,4 +1,5 @@
 """Thread-safe locking mechanism for shared model instances."""
+
 from __future__ import annotations
 
 import threading

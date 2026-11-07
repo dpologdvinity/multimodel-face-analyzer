@@ -1,4 +1,5 @@
 """Face detector backends and factory dispatch."""
+
 from .factory import (
     available_face_detectors,
     detect_faces,

@@ -19,7 +19,9 @@ class SelectAgeTests(unittest.TestCase):
         )
 
     def test_falls_back_down_the_ranking(self):
-        self.assertEqual(inference.select_age({"caffe": 5.0, "dex": 41.2}), ("41", "dex"))
+        self.assertEqual(
+            inference.select_age({"caffe": 5.0, "dex": 41.2}), ("41", "dex")
+        )
 
     def test_ignores_unusable_values(self):
         self.assertIsNone(inference.select_age({"mivolo": float("nan"), "dex": 200.0}))
@@ -27,7 +29,9 @@ class SelectAgeTests(unittest.TestCase):
 
     def test_unusable_top_model_hands_off_to_the_next(self):
         self.assertEqual(
-            inference.select_age({"mivolo": float("nan"), "fairface": 24.5, "dex": 26.0}),
+            inference.select_age(
+                {"mivolo": float("nan"), "fairface": 24.5, "dex": 26.0}
+            ),
             ("24", "fairface"),
         )
 
@@ -37,7 +41,8 @@ class SelectGenderTests(unittest.TestCase):
 
     def test_picks_mivolo_over_fairface(self):
         self.assertEqual(
-            inference.select_gender({"fairface": "Female", "mivolo": "Male"}), ("Male", "mivolo"),
+            inference.select_gender({"fairface": "Female", "mivolo": "Male"}),
+            ("Male", "mivolo"),
         )
 
     def test_needs_at_least_two_models(self):
@@ -49,7 +54,9 @@ class CanonicalRaceTests(unittest.TestCase):
         probs = np.zeros(len(inference.RACE_LABELS_FAIRFACE))
         probs[inference.RACE_LABELS_FAIRFACE.index("East Asian")] = 0.4
         probs[inference.RACE_LABELS_FAIRFACE.index("Southeast Asian")] = 0.6
-        canonical = inference.canonical_race_probabilities(probs, inference.RACE_LABELS_FAIRFACE)
+        canonical = inference.canonical_race_probabilities(
+            probs, inference.RACE_LABELS_FAIRFACE
+        )
         self.assertAlmostEqual(canonical["asian"], 1.0)
 
     def test_display_names_never_contain_the_top_two_separator(self):
@@ -62,7 +69,8 @@ class SelectRaceTests(unittest.TestCase):
 
     def test_picks_fairface_over_deepface(self):
         self.assertEqual(
-            inference.select_race({"deepface": "black", "fairface": "White"}), ("White", "fairface"),
+            inference.select_race({"deepface": "black", "fairface": "White"}),
+            ("White", "fairface"),
         )
 
     def test_needs_at_least_two_models(self):
@@ -73,13 +81,16 @@ class FuseEmotionTests(unittest.TestCase):
     def test_votes_across_differing_spellings_of_one_state(self):
         # ferplus says "happiness", dan says "happy" -- one state, two spellings, two votes.
         self.assertEqual(
-            inference.fuse_emotion({"ferplus": "happiness", "dan": "happy", "mini_xception": "sad"}),
+            inference.fuse_emotion(
+                {"ferplus": "happiness", "dan": "happy", "mini_xception": "sad"}
+            ),
             "happy",
         )
 
     def test_accurate_models_outweigh_an_inaccurate_one(self):
         self.assertEqual(
-            inference.fuse_emotion({"dan": "neutral", "mini_xception": "sad"}), "neutral",
+            inference.fuse_emotion({"dan": "neutral", "mini_xception": "sad"}),
+            "neutral",
         )
 
     def test_needs_at_least_two_models(self):
@@ -89,18 +100,24 @@ class FuseEmotionTests(unittest.TestCase):
 class WithHeadlineTests(unittest.TestCase):
     def test_combined_answer_leads_the_model_pairs(self):
         self.assertEqual(
-            inference.with_headline([("dan", "happy"), ("ferplus", "happiness")], "happy"),
+            inference.with_headline(
+                [("dan", "happy"), ("ferplus", "happiness")], "happy"
+            ),
             [("fused", "happy"), ("dan", "happy"), ("ferplus", "happiness")],
         )
 
     def test_age_uses_its_own_row_name(self):
         self.assertEqual(
-            inference.with_headline([("mivolo", "32")], "32 (mivolo)", inference.BEST_MODEL_KEY),
+            inference.with_headline(
+                [("mivolo", "32")], "32 (mivolo)", inference.BEST_MODEL_KEY
+            ),
             [("best", "32 (mivolo)"), ("mivolo", "32")],
         )
 
     def test_pairs_are_unchanged_without_a_combined_answer(self):
-        self.assertEqual(inference.with_headline([("mivolo", "32")], None), [("mivolo", "32")])
+        self.assertEqual(
+            inference.with_headline([("mivolo", "32")], None), [("mivolo", "32")]
+        )
 
 
 if __name__ == "__main__":

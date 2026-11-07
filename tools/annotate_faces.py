@@ -3,6 +3,7 @@
 Writes tmp/annotated/<name>.png and prints each face's normalized centre, which is the key
 assets/ground_truth.json uses to bind a label to a face independently of detector ordering.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -33,8 +34,15 @@ def main() -> None:
             cy = (y1 + y2) / 2 / height
             print(f"  [{index}] center=({cx:.3f}, {cy:.3f}) box=({x1},{y1},{x2},{y2})")
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
-            cv2.putText(frame, str(index), (x1, max(0, y1 - 6)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
+            cv2.putText(
+                frame,
+                str(index),
+                (x1, max(0, y1 - 6)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1.2,
+                (0, 0, 255),
+                3,
+            )
         cv2.imwrite(str(out_dir / f"{path.stem}.png"), frame)
 
 

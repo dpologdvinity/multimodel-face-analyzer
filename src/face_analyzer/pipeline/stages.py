@@ -1,4 +1,5 @@
 """Stage helpers that analyze_frame orchestrates: prepare, detect, per-face inference, annotate."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -98,7 +99,9 @@ def _prepare_frame(frame: np.ndarray, config: AnalysisConfig) -> np.ndarray:
     return frame
 
 
-def _detect(models: Models, frame: np.ndarray, config: AnalysisConfig) -> tuple[list, list]:
+def _detect(
+    models: Models, frame: np.ndarray, config: AnalysisConfig
+) -> tuple[list, list]:
     """Run the one configured face detector, falling back to SSD (then any loaded detector) if absent.
 
     Unlike every other feature, exactly one detector runs per frame -- running two and merging
@@ -116,8 +119,13 @@ def _detect(models: Models, frame: np.ndarray, config: AnalysisConfig) -> tuple[
         "ssd": detect_faces,
     }[face_detector]
     detections = _cached_face_predict(
-        "face_detection", f"{face_detector}:{conf_threshold}", frame, detect_fn,
-        face_detector_net(models, face_detector), frame, conf_threshold,
+        "face_detection",
+        f"{face_detector}:{conf_threshold}",
+        frame,
+        detect_fn,
+        face_detector_net(models, face_detector),
+        frame,
+        conf_threshold,
     )
     if face_detector in ("scrfd", "retinaface"):
         return detections
@@ -125,13 +133,23 @@ def _detect(models: Models, frame: np.ndarray, config: AnalysisConfig) -> tuple[
 
 
 def _run_whole_frame_features(
-    models: Models, frame: np.ndarray, annotated_frame: np.ndarray, config: AnalysisConfig
+    models: Models,
+    frame: np.ndarray,
+    annotated_frame: np.ndarray,
+    config: AnalysisConfig,
 ) -> bool:
     """Draw whole-frame hand landmarks onto annotated_frame; return whether any hand was found."""
     hands_detected = False
     hand_net = models.hand_nets.get("mediapipe")
     if hand_net is not None and "mediapipe" in config.active_hands:
-        hands = _cached_face_predict("hand_landmarks", "mediapipe", frame, detect_hand_landmarks_mediapipe, hand_net, frame)
+        hands = _cached_face_predict(
+            "hand_landmarks",
+            "mediapipe",
+            frame,
+            detect_hand_landmarks_mediapipe,
+            hand_net,
+            frame,
+        )
         if hands:
             hands_detected = True
             draw_hand_landmarks(annotated_frame, hands)
@@ -144,15 +162,25 @@ def _frame_inputs(models: Models, config: AnalysisConfig) -> _FrameInputs:
     if active_liveness is None:
         active_liveness = set(models.liveness_nets)
     active_age, active_gender = config.active_age, config.active_gender
-    need_blob227 = ("caffe" in active_age and "caffe" in models.age_nets) or \
-                   ("caffe" in active_gender and "caffe" in models.gender_nets)
+    need_blob227 = ("caffe" in active_age and "caffe" in models.age_nets) or (
+        "caffe" in active_gender and "caffe" in models.gender_nets
+    )
     eye_cascade = models.eye_color_nets.get("colorimetric")
-    lbph_trained = train_lbph_recognizer() if "lbph" in config.active_recognition and models.recognition_nets.get("lbph") else None
+    lbph_trained = (
+        train_lbph_recognizer()
+        if "lbph" in config.active_recognition and models.recognition_nets.get("lbph")
+        else None
+    )
     return _FrameInputs(active_liveness, need_blob227, eye_cascade, lbph_trained)
 
 
 def _prepare_face(
-    models: Models, frame: np.ndarray, box: tuple, track_id: Any, config: AnalysisConfig, shared: _FrameInputs,
+    models: Models,
+    frame: np.ndarray,
+    box: tuple,
+    track_id: Any,
+    config: AnalysisConfig,
+    shared: _FrameInputs,
     detector_landmarks: np.ndarray | None = None,
 ) -> _FaceInputs | None:
     """Roll-align, crop and face-adjust one face, then compute its shared landmarks and blobs.
@@ -169,15 +197,29 @@ def _prepare_face(
     crop_frame, (cx1, cy1, cx2, cy2) = frame, (x1, y1, x2, y2)
     angle = None
     if shared.eye_cascade is not None:
-        probe = frame[max(0, y1 - 20):min(y2 + 20, frame.shape[0]), max(0, x1 - 20):min(x2 + 20, frame.shape[1])]
+        probe = frame[
+            max(0, y1 - 20) : min(y2 + 20, frame.shape[0]),
+            max(0, x1 - 20) : min(x2 + 20, frame.shape[1]),
+        ]
         angle = (
-            _cached_face_predict("roll_angle", "haarcascade", probe, _estimate_roll_angle, probe, shared.eye_cascade)
-            if probe.size else None
+            _cached_face_predict(
+                "roll_angle",
+                "haarcascade",
+                probe,
+                _estimate_roll_angle,
+                probe,
+                shared.eye_cascade,
+            )
+            if probe.size
+            else None
         )
-        crop_frame, (cx1, cy1, cx2, cy2) = level_face_region(frame, (x1, y1, x2, y2), angle)
+        crop_frame, (cx1, cy1, cx2, cy2) = level_face_region(
+            frame, (x1, y1, x2, y2), angle
+        )
 
     x1_crop, y1_crop, x2_crop, y2_crop = face_crop_bounds(
-        (cx1, cy1, cx2, cy2), crop_frame.shape[:2],
+        (cx1, cy1, cx2, cy2),
+        crop_frame.shape[:2],
     )
 
     face = crop_frame[y1_crop:y2_crop, x1_crop:x2_crop]
@@ -187,10 +229,13 @@ def _prepare_face(
     if face_adjustments and any(face_adjustments.values()):
         face = apply_image_adjustments(face, face_adjustments)
 
-    run_liveness = config.liveness_tracker is not None and "mediapipe" in shared.active_liveness
+    run_liveness = (
+        config.liveness_tracker is not None and "mediapipe" in shared.active_liveness
+    )
     liveness_net = models.liveness_nets.get("mediapipe") if run_liveness else None
     face_landmarker = (
-        liveness_net if liveness_net is not None
+        liveness_net
+        if liveness_net is not None
         else models.face_landmarks_nets.get("mediapipe")
     )
     needs_face_landmarks = (
@@ -206,23 +251,32 @@ def _prepare_face(
     fairface_landmarks = None
     points = None
     if landmarker_result is not None and face_landmarker is not None:
-        points = predict_face_landmarks_mediapipe(face_landmarker, face, landmarker_result)
+        points = predict_face_landmarks_mediapipe(
+            face_landmarker, face, landmarker_result
+        )
         if points is not None:
-            local_landmarks = fairface_landmarks_from_mediapipe(points, face.shape[1], face.shape[0])
+            local_landmarks = fairface_landmarks_from_mediapipe(
+                points, face.shape[1], face.shape[0]
+            )
             if local_landmarks is not None:
                 local_landmarks += np.array([x1_crop, y1_crop], dtype=np.float32)
                 fairface_landmarks = local_landmarks
     if fairface_landmarks is None and detector_landmarks is not None:
         # The FairFace forward reads crop_frame, which is the leveled region when the face was rotated.
         fairface_landmarks = fairface_landmarks_from_detector(
-            level_face_points(frame.shape, (x1, y1, x2, y2), angle, detector_landmarks), x2 - x1,
+            level_face_points(frame.shape, (x1, y1, x2, y2), angle, detector_landmarks),
+            x2 - x1,
         )
     texture_score = predict_texture_artifact_score(face) if run_liveness else 0.0
-    blink_score = blink_score_from_landmarker(landmarker_result) if run_liveness else None
+    blink_score = (
+        blink_score_from_landmarker(landmarker_result) if run_liveness else None
+    )
 
     blob227 = None
     if shared.need_blob227:
-        blob227 = cv2.dnn.blobFromImage(face, 1.0, (227, 227), MODEL_MEAN_VALUES, swapRB=False)
+        blob227 = cv2.dnn.blobFromImage(
+            face, 1.0, (227, 227), MODEL_MEAN_VALUES, swapRB=False
+        )
 
     mivolo_net = models.age_nets.get("mivolo") or models.gender_nets.get("mivolo")
     mivolo_wanted = "mivolo" in active_age or "mivolo" in active_gender
@@ -231,31 +285,58 @@ def _prepare_face(
     if mivolo_net is not None and mivolo_wanted:
         if "mivolo" in active_age and "mivolo" not in active_gender:
             mivolo_age_result = _cached_face_predict(
-                "mivolo_age", "face", face, mivolo_age_estimate, mivolo_net, face,
+                "mivolo_age",
+                "face",
+                face,
+                mivolo_age_estimate,
+                mivolo_net,
+                face,
             )
         else:
             mivolo_result = _cached_face_predict(
-                "mivolo", "face", face, mivolo_estimate, mivolo_net, face,
+                "mivolo",
+                "face",
+                face,
+                mivolo_estimate,
+                mivolo_net,
+                face,
             )
 
     return _FaceInputs(
-        frame=frame, box=(x1, y1, x2, y2), crop_frame=crop_frame, crop_box=(cx1, cy1, cx2, cy2),
-        face=face, track_id=track_id,
-        landmarker_result=landmarker_result, points=points, fairface_landmarks=fairface_landmarks,
-        run_liveness=run_liveness, texture_score=texture_score, blink_score=blink_score,
-        blob227=blob227, mivolo_result=mivolo_result, mivolo_age_result=mivolo_age_result,
+        frame=frame,
+        box=(x1, y1, x2, y2),
+        crop_frame=crop_frame,
+        crop_box=(cx1, cy1, cx2, cy2),
+        face=face,
+        track_id=track_id,
+        landmarker_result=landmarker_result,
+        points=points,
+        fairface_landmarks=fairface_landmarks,
+        run_liveness=run_liveness,
+        texture_score=texture_score,
+        blink_score=blink_score,
+        blob227=blob227,
+        mivolo_result=mivolo_result,
+        mivolo_age_result=mivolo_age_result,
     )
 
 
 def _analyze_face(
-    models: Models, frame: np.ndarray, box: tuple, track_id: Any, config: AnalysisConfig, shared: _FrameInputs,
+    models: Models,
+    frame: np.ndarray,
+    box: tuple,
+    track_id: Any,
+    config: AnalysisConfig,
+    shared: _FrameInputs,
     detector_landmarks: np.ndarray | None = None,
 ) -> dict | None:
     """Run every attribute task for one face in parallel; None when the crop is empty.
 
     Returns {"inputs": _FaceInputs, <feature>: that task's result} for _annotate/_face_record.
     """
-    inputs = _prepare_face(models, frame, box, track_id, config, shared, detector_landmarks)
+    inputs = _prepare_face(
+        models, frame, box, track_id, config, shared, detector_landmarks
+    )
     if inputs is None:
         return None
     submit = _INFERENCE_EXECUTOR.submit
@@ -266,7 +347,9 @@ def _analyze_face(
         "race": submit(_race_task, models, config, inputs),
         "gaze": submit(_gaze_task, models, config, inputs),
         "head_pose": submit(_head_pose_task, models, config, inputs),
-        "recognition": submit(_recognition_task, models, config, inputs, shared.lbph_trained),
+        "recognition": submit(
+            _recognition_task, models, config, inputs, shared.lbph_trained
+        ),
         "glasses": submit(_glasses_task, models, config, inputs),
         "mask": submit(_mask_task, models, config, inputs),
         "eye_color": submit(_eye_color_task, models, config, inputs),
@@ -284,7 +367,11 @@ def _analyze_face(
 
 
 def _annotate(
-    models: Models, annotated_frame: np.ndarray, idx: int, analysis: dict, config: AnalysisConfig,
+    models: Models,
+    annotated_frame: np.ndarray,
+    idx: int,
+    analysis: dict,
+    config: AnalysisConfig,
 ) -> None:
     """Draw one face's box, its number and (if active) its face-mesh overlay.
 
@@ -299,13 +386,19 @@ def _annotate(
         # colour matches the skin or background underneath.
         rim = box_thickness + 2 * max(1, box_thickness // 3)
         cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), config.box_outline, rim, 8)
-    cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), config.box_color, box_thickness, 8)
+    cv2.rectangle(
+        annotated_frame, (x1, y1), (x2, y2), config.box_color, box_thickness, 8
+    )
     display_id = track_id if track_id is not None else idx
-    draw_outlined_text(annotated_frame, str(display_id), (x1, max(20, y1 - 10)), config.label_color)
+    draw_outlined_text(
+        annotated_frame, str(display_id), (x1, max(20, y1 - 10)), config.label_color
+    )
 
     landmarks_net = models.face_landmarks_nets.get("mediapipe")
     if landmarks_net is not None and "mediapipe" in config.active_face_landmarks:
-        landmark_points = predict_face_landmarks_mediapipe(landmarks_net, inputs.face, inputs.landmarker_result)
+        landmark_points = predict_face_landmarks_mediapipe(
+            landmarks_net, inputs.face, inputs.landmarker_result
+        )
         if landmark_points is not None:
             draw_face_landmarks(annotated_frame, landmark_points, (x1, y1, x2, y2))
 
@@ -325,7 +418,10 @@ def _face_record(idx: int, analysis: dict) -> dict:
     eye_color_pairs = analysis["eye_color"]
     liveness_pairs, liveness_result = analysis["liveness"]
 
-    eye_contact = [f"{key}=yes" if value.startswith("center/") else f"{key}=no" for key, value in gaze_pairs]
+    eye_contact = [
+        f"{key}=yes" if value.startswith("center/") else f"{key}=no"
+        for key, value in gaze_pairs
+    ]
 
     age_pairs = with_headline(
         age_pairs,
@@ -344,24 +440,40 @@ def _face_record(idx: int, analysis: dict) -> dict:
     )
     emotion_pairs = with_headline(emotion_pairs, fused_emotion)
 
-    raw_columns = _gather_face_results({
-        "age": age_pairs, "gender": gender_pairs, "race": race_pairs, "emotion": emotion_pairs,
-        "gaze": gaze_pairs, "identity": recognition_pairs,
-        "eye_contact": [("derived", value) for value in eye_contact], "head_pose": head_pose_pairs,
-        "glasses": glasses_pairs, "mask": mask_pairs,
-        "eye_color": eye_color_pairs,
-        "liveness": liveness_pairs,
-    })
+    raw_columns = _gather_face_results(
+        {
+            "age": age_pairs,
+            "gender": gender_pairs,
+            "race": race_pairs,
+            "emotion": emotion_pairs,
+            "gaze": gaze_pairs,
+            "identity": recognition_pairs,
+            "eye_contact": [("derived", value) for value in eye_contact],
+            "head_pose": head_pose_pairs,
+            "glasses": glasses_pairs,
+            "mask": mask_pairs,
+            "eye_color": eye_color_pairs,
+            "liveness": liveness_pairs,
+        }
+    )
     model_results = [
-        {"Feature": feature.replace("_", " ").upper(), "Model": model, "Output": str(value)}
+        {
+            "Feature": feature.replace("_", " ").upper(),
+            "Model": model,
+            "Output": str(value),
+        }
         for feature, pairs in {
             "age": age_pairs,
-            "gender": gender_pairs, "race": race_pairs, "emotion": emotion_pairs,
-            "gaze": gaze_pairs, "identity": recognition_pairs,
+            "gender": gender_pairs,
+            "race": race_pairs,
+            "emotion": emotion_pairs,
+            "gaze": gaze_pairs,
+            "identity": recognition_pairs,
             "eye contact": [("derived", value) for value in eye_contact],
             "head pose": head_pose_pairs,
             "glasses": glasses_pairs,
-            "mask": mask_pairs, "eye color": eye_color_pairs,
+            "mask": mask_pairs,
+            "eye color": eye_color_pairs,
             "liveness": liveness_pairs,
         }.items()
         for model, value in pairs
@@ -390,11 +502,21 @@ def _face_record(idx: int, analysis: dict) -> dict:
         "mask": _format_results(mask_pairs),
         "eye_color": _format_results(eye_color_pairs),
         "liveness": [liveness_result.summary] if liveness_result is not None else [],
-        "liveness_status": liveness_result.status if liveness_result is not None else None,
-        "blink_count": liveness_result.blink_count if liveness_result is not None else None,
-        "blink_rate": liveness_result.blink_rate if liveness_result is not None else None,
-        "texture_score": liveness_result.texture_score if liveness_result is not None else None,
-        "texture_artifact": liveness_result.texture_artifact if liveness_result is not None else None,
+        "liveness_status": liveness_result.status
+        if liveness_result is not None
+        else None,
+        "blink_count": liveness_result.blink_count
+        if liveness_result is not None
+        else None,
+        "blink_rate": liveness_result.blink_rate
+        if liveness_result is not None
+        else None,
+        "texture_score": liveness_result.texture_score
+        if liveness_result is not None
+        else None,
+        "texture_artifact": liveness_result.texture_artifact
+        if liveness_result is not None
+        else None,
         "embedding": face_embedding.tolist() if face_embedding is not None else None,
         "raw_columns": raw_columns,
         "model_results": model_results,

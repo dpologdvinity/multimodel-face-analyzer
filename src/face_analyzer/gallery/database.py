@@ -1,4 +1,5 @@
 """SQLite persistence and image file management for classified faces."""
+
 from __future__ import annotations
 
 import random
@@ -35,10 +36,13 @@ def save_face(face_bgr: np.ndarray, raw_columns: dict[str, str]) -> int:
 
         for _ in range(20):
             candidate = random.randint(1, 999_999)
-            if any(path.exists() for path in (
-                faces_dir / f"{candidate}.jpg",
-                eigen_dir / f"{candidate}.jpg",
-            )):
+            if any(
+                path.exists()
+                for path in (
+                    faces_dir / f"{candidate}.jpg",
+                    eigen_dir / f"{candidate}.jpg",
+                )
+            ):
                 continue
             cols = ["id"] + list(raw_columns.keys())
             placeholders = ", ".join("?" for _ in cols)

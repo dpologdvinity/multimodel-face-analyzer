@@ -30,7 +30,14 @@ _STATE_MODULE = "_face_analyzer_reload_state"
 
 def source_fingerprint(source_dir: Path = SOURCE_DIR) -> int:
     """Hash the path and modification time of every package source file."""
-    return hash(tuple(sorted((str(path), path.stat().st_mtime_ns) for path in source_dir.rglob("*.py"))))
+    return hash(
+        tuple(
+            sorted(
+                (str(path), path.stat().st_mtime_ns)
+                for path in source_dir.rglob("*.py")
+            )
+        )
+    )
 
 
 def reload_state() -> types.ModuleType:
@@ -53,7 +60,11 @@ def purge_package() -> bool:
     if slot is not None and not slot.acquire(blocking=False):
         return False
     try:
-        for name in [name for name in sys.modules if name == PACKAGE or name.startswith(f"{PACKAGE}.")]:
+        for name in [
+            name
+            for name in sys.modules
+            if name == PACKAGE or name.startswith(f"{PACKAGE}.")
+        ]:
             del sys.modules[name]
         st.cache_resource.clear()
         st.cache_data.clear()
@@ -64,7 +75,9 @@ def purge_package() -> bool:
 
 
 def reload_if_source_changed(
-    state: types.ModuleType, fingerprint: int, purge: Callable[[], bool] = purge_package,
+    state: types.ModuleType,
+    fingerprint: int,
+    purge: Callable[[], bool] = purge_package,
 ) -> bool:
     """Purge the package once when its source changed since this process imported it.
 
@@ -83,7 +96,9 @@ def reload_if_source_changed(
 
 def _load_fetcher():
     """Load tools/fetch_models.py, which stays a standalone, standard-library-only script."""
-    spec = importlib.util.spec_from_file_location("fetch_models", ROOT / "tools" / "fetch_models.py")
+    spec = importlib.util.spec_from_file_location(
+        "fetch_models", ROOT / "tools" / "fetch_models.py"
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -108,14 +123,18 @@ def main() -> None:
 
     fetch_models = _load_fetcher()
 
-    @st.cache_resource(show_spinner="First start: downloading the demo model weights (about 250 MB)...")
+    @st.cache_resource(
+        show_spinner="First start: downloading the demo model weights (about 250 MB)..."
+    )
     def ensure_demo_weights() -> int:
         """Download and verify the demo's weight files once per process; return how many were checked.
 
         A failure raises, and Streamlit does not cache exceptions, so the next page load retries.
         """
         include_mediapipe = importlib.util.find_spec("mediapipe") is not None
-        entries = demo_manifest_entries(fetch_models.load_manifest(), include_mediapipe=include_mediapipe)
+        entries = demo_manifest_entries(
+            fetch_models.load_manifest(), include_mediapipe=include_mediapipe
+        )
         model_dir = fetch_models.default_model_dir()
         for entry in entries:
             fetch_models.fetch_entry(entry, model_dir)
@@ -126,7 +145,9 @@ def main() -> None:
     except (fetch_models.FetchError, OSError) as exc:
         # Details (URLs, server paths) go to the log only, never to the visitor.
         print(f"demo weight fetch failed: {exc!r}", file=sys.stderr)
-        st.error("Could not download the demo model weights. Reload the page in a minute to retry.")
+        st.error(
+            "Could not download the demo model weights. Reload the page in a minute to retry."
+        )
         st.stop()
 
     runpy.run_path(str(ROOT / "src" / "face_analyzer" / "app.py"), run_name="__main__")

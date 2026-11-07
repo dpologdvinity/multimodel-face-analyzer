@@ -16,8 +16,7 @@ class LivenessTests(unittest.TestCase):
         """Verify texture scorer distinguishes smooth from checkerboard patterns."""
         smooth = [[128] * 32 for _ in range(32)]
         checkerboard = [
-            [0 if (x + y) % 2 else 255 for x in range(32)]
-            for y in range(32)
+            [0 if (x + y) % 2 else 255 for x in range(32)] for y in range(32)
         ]
 
         self.assertLess(texture_artifact_score(smooth), 0.01)
@@ -57,10 +56,14 @@ class LivenessTests(unittest.TestCase):
 
     def test_blink_score_averages_both_eye_blendshapes(self):
         """Confirm blink score is mean of left and right eye blendshape scores."""
-        result = SimpleNamespace(face_blendshapes=[[
-            SimpleNamespace(category_name="eyeBlinkLeft", score=0.8),
-            SimpleNamespace(category_name="eyeBlinkRight", score=0.6),
-        ]])
+        result = SimpleNamespace(
+            face_blendshapes=[
+                [
+                    SimpleNamespace(category_name="eyeBlinkLeft", score=0.8),
+                    SimpleNamespace(category_name="eyeBlinkRight", score=0.6),
+                ]
+            ]
+        )
 
         self.assertAlmostEqual(blink_score_from_landmarker(result), 0.7)
 

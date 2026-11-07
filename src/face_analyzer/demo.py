@@ -1,4 +1,5 @@
 """Public demo mode: the stateless, permissively licensed subset a shared deployment exposes."""
+
 from __future__ import annotations
 
 import os
@@ -40,7 +41,9 @@ ANALYSIS_SLOT_HOLDER = "_face_analyzer_reload_state"
 
 def _shared_analysis_slot() -> threading.BoundedSemaphore:
     """Return the process-wide analysis semaphore, creating it on first use."""
-    holder = sys.modules.setdefault(ANALYSIS_SLOT_HOLDER, types.ModuleType(ANALYSIS_SLOT_HOLDER))
+    holder = sys.modules.setdefault(
+        ANALYSIS_SLOT_HOLDER, types.ModuleType(ANALYSIS_SLOT_HOLDER)
+    )
     # dict.setdefault is atomic, so concurrent imports still agree on one semaphore.
     return vars(holder).setdefault("analysis_slot", threading.BoundedSemaphore(1))
 
@@ -64,19 +67,27 @@ def is_demo_mode() -> bool:
 
 def demo_model_allowed(environment_name: str, model_name: str) -> bool:
     """Return whether demo mode permits a backend (always true outside demo mode)."""
-    return not is_demo_mode() or model_name in DEMO_MODELS.get(environment_name, frozenset())
+    return not is_demo_mode() or model_name in DEMO_MODELS.get(
+        environment_name, frozenset()
+    )
 
 
 def demo_manifest_entries(entries: list[dict], include_mediapipe: bool) -> list[dict]:
     """Return the manifest entries a demo needs: "hf" files that are required or demo-selected."""
     selected = {
-        (arg, key) for arg, keys in DEMO_MODELS.items() for key in keys
+        (arg, key)
+        for arg, keys in DEMO_MODELS.items()
+        for key in keys
         if include_mediapipe or key != "mediapipe"
     }
     return [
-        entry for entry in entries
+        entry
+        for entry in entries
         if entry["source"] == "hf"
-        and (entry.get("required") or any(item in selected for item in entry["models"].items()))
+        and (
+            entry.get("required")
+            or any(item in selected for item in entry["models"].items())
+        )
     ]
 
 
@@ -100,7 +111,9 @@ def analysis_slot(on_wait: Callable[[], object]) -> Iterator[None]:
 def refuse_in_demo_mode(action: str) -> None:
     """Raise PermissionError for an action that stores faces, when demo mode is on."""
     if is_demo_mode():
-        raise PermissionError(f"{action} is disabled in demo mode: the public demo stores no faces.")
+        raise PermissionError(
+            f"{action} is disabled in demo mode: the public demo stores no faces."
+        )
 
 
 def demo_attribution(include_mediapipe: bool) -> str:

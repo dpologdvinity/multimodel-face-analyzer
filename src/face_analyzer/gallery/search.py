@@ -1,4 +1,5 @@
 """Identity embedding, gallery matching, LBPH face recognition, and gallery building."""
+
 from __future__ import annotations
 
 import hashlib
@@ -39,7 +40,9 @@ def compute_face_embedding(net: Any, face_bgr: np.ndarray) -> np.ndarray:
     return emb / norm if norm > 0 else emb
 
 
-def match_face_identity(embedding: np.ndarray, gallery: dict) -> tuple[str, float] | None:
+def match_face_identity(
+    embedding: np.ndarray, gallery: dict
+) -> tuple[str, float] | None:
     """Find best cosine similarity match against enrolled identity gallery."""
     best_name, best_sim = None, -1.0
     for name, gal_emb in gallery.items():
@@ -61,7 +64,9 @@ def save_gallery(gallery: dict) -> None:
     """Persist enrolled face embeddings to gallery/known_faces.json."""
     refuse_in_demo_mode("Enrolling faces")
     GALLERY_FILE.parent.mkdir(parents=True, exist_ok=True)
-    GALLERY_FILE.write_text(json.dumps({name: vec.tolist() for name, vec in gallery.items()}))
+    GALLERY_FILE.write_text(
+        json.dumps({name: vec.tolist() for name, vec in gallery.items()})
+    )
 
 
 def _lbph_preprocess(face_bgr: np.ndarray) -> np.ndarray:
@@ -73,7 +78,9 @@ def validate_lbph_name(name: str) -> str:
     """Return a safe gallery directory name or raise for path traversal input."""
     name = name.strip()
     if not name or name in {".", ".."} or Path(name).name != name:
-        raise ValueError("Enrollment name must be a non-empty name without path separators.")
+        raise ValueError(
+            "Enrollment name must be a non-empty name without path separators."
+        )
     return name
 
 
@@ -97,7 +104,9 @@ def _lbph_gallery_signature() -> str | None:
             stat = path.stat()
         except FileNotFoundError:
             continue
-        entries.append(f"{path.relative_to(LBPH_GALLERY_DIR)}:{stat.st_size}:{stat.st_mtime_ns}")
+        entries.append(
+            f"{path.relative_to(LBPH_GALLERY_DIR)}:{stat.st_size}:{stat.st_mtime_ns}"
+        )
     return hashlib.sha256("\n".join(entries).encode()).hexdigest()
 
 
@@ -144,7 +153,9 @@ def train_lbph_recognizer():
 _CAPPED_IMAGE_FORMATS = {"JPEG", "MPO", "PNG", "WEBP"}
 
 
-def _check_image_header(file_bytes: bytes | bytearray | np.ndarray, max_pixels: int) -> None:
+def _check_image_header(
+    file_bytes: bytes | bytearray | np.ndarray, max_pixels: int
+) -> None:
     """Raise ValueError unless the header is a readable JPEG/PNG/WebP within max_pixels."""
     try:
         with Image.open(io.BytesIO(bytes(file_bytes))) as image:
@@ -156,7 +167,9 @@ def _check_image_header(file_bytes: bytes | bytearray | np.ndarray, max_pixels: 
     if image_format not in _CAPPED_IMAGE_FORMATS:
         raise ValueError("The uploaded file is not a JPEG, PNG or WebP image.")
     if width * height > max_pixels:
-        raise ValueError(f"The image is too large ({width * height / 1e6:.0f} MP; the limit is {max_pixels / 1e6:.0f} MP).")
+        raise ValueError(
+            f"The image is too large ({width * height / 1e6:.0f} MP; the limit is {max_pixels / 1e6:.0f} MP)."
+        )
 
 
 def decode_image_bytes(
@@ -181,18 +194,30 @@ def decode_image_bytes(
     longer_side = max(height, width)
     if longer_side > max_dimension:
         scale = max_dimension / longer_side
-        frame = cv2.resize(frame, (round(width * scale), round(height * scale)), interpolation=cv2.INTER_AREA)
+        frame = cv2.resize(
+            frame,
+            (round(width * scale), round(height * scale)),
+            interpolation=cv2.INTER_AREA,
+        )
     return frame
 
 
-def predict_identity_lbph(recognizer: Any, label_names: list[str], face_bgr: np.ndarray) -> tuple[str, float] | None:
+def predict_identity_lbph(
+    recognizer: Any, label_names: list[str], face_bgr: np.ndarray
+) -> tuple[str, float] | None:
     """Predict enrolled identity via LBPH recognizer if distance is below threshold."""
     with _lock_for(recognizer):
         label, confidence = recognizer.predict(_lbph_preprocess(face_bgr))
-    return (label_names[label], confidence) if confidence < LBPH_CONFIDENCE_THRESHOLD else None
+    return (
+        (label_names[label], confidence)
+        if confidence < LBPH_CONFIDENCE_THRESHOLD
+        else None
+    )
 
 
-def build_gallery_from_directory(face_net: Any, recognition_net: Any, directory: str | Path) -> dict[str, np.ndarray]:
+def build_gallery_from_directory(
+    face_net: Any, recognition_net: Any, directory: str | Path
+) -> dict[str, np.ndarray]:
     """Scan directory for face images, detect faces, and build name-to-embedding gallery dict."""
     directory = Path(directory)
     gallery: dict[str, np.ndarray] = {}
@@ -215,6 +240,8 @@ def build_gallery_from_directory(face_net: Any, recognition_net: Any, directory:
         face = image[y1c:y2c, x1c:x2c]
         if face.size == 0:
             continue
-        gallery[path.stem.replace("_", " ")] = compute_face_embedding(recognition_net, face)
+        gallery[path.stem.replace("_", " ")] = compute_face_embedding(
+            recognition_net, face
+        )
 
     return gallery

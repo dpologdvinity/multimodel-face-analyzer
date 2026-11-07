@@ -1,4 +1,5 @@
 """Regression test: the public demo's pipeline (RetinaFace, no MediaPipe) on the crew photo."""
+
 from pathlib import Path
 
 import cv2
@@ -24,7 +25,9 @@ def test_demo_path_gets_both_women_on_the_crew_photo_right(monkeypatch):
     models = load_models()
     assert not models.face_landmarks_nets
     config = AnalysisConfig(
-        face_detector="retinaface", active_age={"fairface"}, active_gender={"fairface"},
+        face_detector="retinaface",
+        active_age={"fairface"},
+        active_gender={"fairface"},
         active_race={"fairface"},
     )
     _, faces, _, _ = analyze_frame(models, cv2.imread(str(FIXTURE)), config)

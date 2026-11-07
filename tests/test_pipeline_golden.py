@@ -1,4 +1,5 @@
 """Golden characterization test: analyze_frame output on a fixed public-domain photo."""
+
 import json
 import os
 from pathlib import Path
@@ -16,11 +17,17 @@ GOLDEN = Path(__file__).parent / "fixtures" / "golden_analysis.json"
 
 # Every model file the cv2.dnn/OpenCV-only backends load from (no torch/TF/onnxruntime needed).
 REQUIRED_MODELS = [
-    C.FACE_PROTO, C.FACE_MODEL,
-    C.AGE_PROTO, C.AGE_MODEL,
-    C.GENDER_PROTO, C.GENDER_MODEL,
-    C.DEX_PROTO, C.DEX_MODEL,
-    C.FAIRFACE_MODEL, C.FERPLUS_MODEL, C.HSEMOTION_MODEL,
+    C.FACE_PROTO,
+    C.FACE_MODEL,
+    C.AGE_PROTO,
+    C.AGE_MODEL,
+    C.GENDER_PROTO,
+    C.GENDER_MODEL,
+    C.DEX_PROTO,
+    C.DEX_MODEL,
+    C.FAIRFACE_MODEL,
+    C.FERPLUS_MODEL,
+    C.HSEMOTION_MODEL,
 ]
 
 
@@ -48,7 +55,9 @@ def _config(models) -> AnalysisConfig:
         if missing:
             # Explicit raise: a bare assert is stripped under -O and would let a partial
             # backend set silently produce a different golden output.
-            raise AssertionError(f"golden backends failed to load for {feature}: {sorted(missing)}")
+            raise AssertionError(
+                f"golden backends failed to load for {feature}: {sorted(missing)}"
+            )
     return AnalysisConfig(
         conf_threshold=0.5,
         active_age=set(EXPECTED_ACTIVE["age"]),
@@ -65,7 +74,8 @@ def _clean(value):
     if isinstance(value, dict):
         return {
             k: [int(c) for c in v] if k == "box" else _clean(v)
-            for k, v in value.items() if not isinstance(v, np.ndarray)
+            for k, v in value.items()
+            if not isinstance(v, np.ndarray)
         }
     if isinstance(value, (list, tuple)):
         items = [_clean(v) for v in value if not isinstance(v, np.ndarray)]

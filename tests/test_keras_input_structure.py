@@ -19,8 +19,14 @@ class KerasInputStructureTests(unittest.TestCase):
     def test_mediapipe_detection_runs_inside_native_log_suppression(self):
         """Keep MediaPipe's non-actionable native projection diagnostics out of Streamlit logs."""
         source = (NETS_DIR.parent / "pipeline" / "landmarks.py").read_text()
-        self.assertIn("with _silence_native_logs():\n            return landmarker.detect(mp_image)", source)
-        self.assertIn("with _silence_native_logs():\n            result = landmarker.detect(mp_image)", source)
+        self.assertIn(
+            "with _silence_native_logs():\n            return landmarker.detect(mp_image)",
+            source,
+        )
+        self.assertIn(
+            "with _silence_native_logs():\n            result = landmarker.detect(mp_image)",
+            source,
+        )
 
 
 if __name__ == "__main__":

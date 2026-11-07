@@ -1,4 +1,5 @@
 """Ensemble fusion functions for combining predictions from multiple models."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -21,7 +22,9 @@ def _format_race_label(probs: np.ndarray, labels: list[str]) -> str:
     return labels[top1]
 
 
-def canonical_race_probabilities(probs: np.ndarray, labels: list[str]) -> dict[str, float]:
+def canonical_race_probabilities(
+    probs: np.ndarray, labels: list[str]
+) -> dict[str, float]:
     """Re-express one backend's class probabilities over the shared canonical race keys.
 
     The app no longer calls this (race names its best model instead of fusing); it is kept for
@@ -45,7 +48,9 @@ def fuse_emotion(labels: dict[str, str]) -> str | None:
         canonical = EMOTION_CANONICAL.get(str(label).lower())
         if canonical is None:
             continue
-        votes[canonical] = votes.get(canonical, 0.0) + EMOTION_FUSION_WEIGHTS.get(model, 1.0)
+        votes[canonical] = votes.get(canonical, 0.0) + EMOTION_FUSION_WEIGHTS.get(
+            model, 1.0
+        )
     if not votes:
         return None
     return max(votes.items(), key=lambda item: item[1])[0]

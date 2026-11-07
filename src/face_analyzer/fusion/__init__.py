@@ -1,4 +1,5 @@
 """Fusion subpackage: model ranking and ensemble fusion for multi-model predictions."""
+
 from __future__ import annotations
 
 # Re-export constants used by callers (e.g., tests, inference.py) via face_analyzer.fusion

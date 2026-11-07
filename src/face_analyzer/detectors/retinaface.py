@@ -1,4 +1,5 @@
 """RetinaFace detection backend using ONNX Runtime."""
+
 from __future__ import annotations
 
 import functools
@@ -29,7 +30,10 @@ def _retinaface_softmax(x: np.ndarray, axis: int = -1) -> np.ndarray:
 @functools.lru_cache(maxsize=1)
 def _retinaface_priors() -> np.ndarray:
     """Compute and cache normalized anchor prior boxes for RetinaFace."""
-    feature_maps = [(ceil(RETINAFACE_INPUT_HEIGHT / s), ceil(RETINAFACE_INPUT_WIDTH / s)) for s in RETINAFACE_STEPS]
+    feature_maps = [
+        (ceil(RETINAFACE_INPUT_HEIGHT / s), ceil(RETINAFACE_INPUT_WIDTH / s))
+        for s in RETINAFACE_STEPS
+    ]
     anchors = []
     for k, (fm_h, fm_w) in enumerate(feature_maps):
         for i, j in itertools.product(range(fm_h), range(fm_w)):
@@ -56,13 +60,17 @@ def _retinaface_decode(loc: np.ndarray, priors: np.ndarray) -> np.ndarray:
     return boxes
 
 
-def detect_faces_retinaface(session: Any, frame: np.ndarray | None, conf_threshold: float = 0.5) -> list[list[int]]:
+def detect_faces_retinaface(
+    session: Any, frame: np.ndarray | None, conf_threshold: float = 0.5
+) -> list[list[int]]:
     """Detect faces using RetinaFace ONNX session and return [x1, y1, x2, y2] bounding boxes."""
     return detect_faces_retinaface_landmarks(session, frame, conf_threshold)[0]
 
 
 def detect_faces_retinaface_landmarks(
-    session: Any, frame: np.ndarray | None, conf_threshold: float = 0.5,
+    session: Any,
+    frame: np.ndarray | None,
+    conf_threshold: float = 0.5,
 ) -> tuple[list[list[int]], list[np.ndarray]]:
     """Detect faces with RetinaFace; return the boxes and each box's 5x2 landmarks in frame pixels.
 
@@ -74,7 +82,9 @@ def detect_faces_retinaface_landmarks(
     scale = min(RETINAFACE_INPUT_HEIGHT / frame_h, RETINAFACE_INPUT_WIDTH / frame_w)
     new_h, new_w = int(frame_h * scale), int(frame_w * scale)
     resized = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
-    canvas = np.zeros((RETINAFACE_INPUT_HEIGHT, RETINAFACE_INPUT_WIDTH, 3), dtype=np.float32)
+    canvas = np.zeros(
+        (RETINAFACE_INPUT_HEIGHT, RETINAFACE_INPUT_WIDTH, 3), dtype=np.float32
+    )
     canvas[:new_h, :new_w] = resized.astype(np.float32)
     canvas -= RETINAFACE_MEAN
     blob = canvas[np.newaxis, ...]
@@ -95,7 +105,9 @@ def detect_faces_retinaface_landmarks(
         return [], []
 
     nms_boxes = [[x1, y1, x2 - x1, y2 - y1] for x1, y1, x2, y2 in boxes]
-    keep = cv2.dnn.NMSBoxes(nms_boxes, scores.tolist(), conf_threshold, RETINAFACE_NMS_THRESHOLD)
+    keep = cv2.dnn.NMSBoxes(
+        nms_boxes, scores.tolist(), conf_threshold, RETINAFACE_NMS_THRESHOLD
+    )
     if len(keep) == 0:
         return [], []
     keep = np.array(keep).flatten()
@@ -106,6 +118,9 @@ def detect_faces_retinaface_landmarks(
     points = landm[keep].reshape(-1, 5, 2)
     priors = priors[keep, np.newaxis, :]
     points = priors[..., :2] + points * RETINAFACE_VARIANCE[0] * priors[..., 2:]
-    points *= np.array([RETINAFACE_INPUT_WIDTH, RETINAFACE_INPUT_HEIGHT], dtype=np.float32) / scale
+    points *= (
+        np.array([RETINAFACE_INPUT_WIDTH, RETINAFACE_INPUT_HEIGHT], dtype=np.float32)
+        / scale
+    )
 
     return boxes.astype(int).tolist(), list(points.astype(np.float32))

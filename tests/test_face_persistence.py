@@ -22,17 +22,24 @@ class FacePersistenceTests(unittest.TestCase):
             face = np.zeros((32, 32, 3), dtype=np.uint8)
 
             # Mock module-level paths to isolate test to temp directories
-            with mock.patch.object(database, "FACES_DB_FILE", db_file), \
-                 mock.patch.object(database, "FACES_DIR", faces_dir), \
-                 mock.patch.object(database, "EIGEN_DIR", eigen_dir), \
-                 mock.patch.object(random, "randint", return_value=123):
+            with (
+                mock.patch.object(database, "FACES_DB_FILE", db_file),
+                mock.patch.object(database, "FACES_DIR", faces_dir),
+                mock.patch.object(database, "EIGEN_DIR", eigen_dir),
+                mock.patch.object(random, "randint", return_value=123),
+            ):
                 face_id = database.save_face(face, {"age_caffe": "25-32"})
 
             self.assertEqual(face_id, 123)
             self.assertTrue((faces_dir / "123.jpg").is_file())
             self.assertTrue((eigen_dir / "123.jpg").is_file())
             with sqlite3.connect(db_file) as conn:
-                self.assertEqual(conn.execute("SELECT COUNT(*) FROM faces WHERE id = 123").fetchone()[0], 1)
+                self.assertEqual(
+                    conn.execute(
+                        "SELECT COUNT(*) FROM faces WHERE id = 123"
+                    ).fetchone()[0],
+                    1,
+                )
 
     def test_image_write_failure_does_not_leave_database_row_or_partial_files(self):
         """Verify save_face rolls back DB and cleans up partial files on write failure."""
@@ -44,18 +51,22 @@ class FacePersistenceTests(unittest.TestCase):
             face = np.zeros((32, 32, 3), dtype=np.uint8)
 
             # Mock module-level paths and imwrite to simulate second file write failure
-            with mock.patch.object(database, "FACES_DB_FILE", db_file), \
-                 mock.patch.object(database, "FACES_DIR", faces_dir), \
-                 mock.patch.object(database, "EIGEN_DIR", eigen_dir), \
-                 mock.patch.object(random, "randint", return_value=123), \
-                 mock.patch.object(cv2, "imwrite", side_effect=[True, False]):
+            with (
+                mock.patch.object(database, "FACES_DB_FILE", db_file),
+                mock.patch.object(database, "FACES_DIR", faces_dir),
+                mock.patch.object(database, "EIGEN_DIR", eigen_dir),
+                mock.patch.object(random, "randint", return_value=123),
+                mock.patch.object(cv2, "imwrite", side_effect=[True, False]),
+            ):
                 with self.assertRaises(OSError):
                     database.save_face(face, {"age_caffe": "25-32"})
 
             self.assertFalse((faces_dir / "123.jpg").exists())
             self.assertFalse((eigen_dir / "123.jpg").exists())
             with sqlite3.connect(db_file) as conn:
-                self.assertEqual(conn.execute("SELECT COUNT(*) FROM faces").fetchone()[0], 0)
+                self.assertEqual(
+                    conn.execute("SELECT COUNT(*) FROM faces").fetchone()[0], 0
+                )
 
 
 if __name__ == "__main__":

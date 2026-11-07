@@ -3,6 +3,7 @@
 Clones the repository at a pinned commit, pins OpenCV to the app's version, and reads the labels
 of the face-age-prep kernel and the aligned crops of the face-age-crops kernel.
 """
+
 import glob
 import os
 import subprocess
@@ -21,8 +22,23 @@ def run(*cmd: str) -> None:
 
 
 pip = [sys.executable, "-m", "pip"]
-run(*pip, "uninstall", "-q", "-y", "opencv-python", "opencv-contrib-python", "opencv-python-headless")
-run(*pip, "install", "-q", "opencv-python-headless==4.14.0.94", "timm==1.0.30", "onnx==1.23.2")
+run(
+    *pip,
+    "uninstall",
+    "-q",
+    "-y",
+    "opencv-python",
+    "opencv-contrib-python",
+    "opencv-python-headless",
+)
+run(
+    *pip,
+    "install",
+    "-q",
+    "opencv-python-headless==4.14.0.94",
+    "timm==1.0.30",
+    "onnx==1.23.2",
+)
 run("git", "clone", "-q", REPO, SRC)
 run("git", "-C", SRC, "checkout", "-q", COMMIT)
 run(*pip, "install", "-q", "--no-deps", "-e", SRC)
@@ -34,5 +50,14 @@ os.environ["HF_HOME"] = "/tmp/age/hf"
 run("nvidia-smi", "--query-gpu=name,memory.total", "--format=csv")
 run("nproc")
 run("free", "-g")
-run(sys.executable, f"{SRC}/tools/kaggle/age_model/train_age.py", "--prep", os.path.dirname(prep[0]),
-    "--crops", os.path.dirname(crops[0]), "--out", "/kaggle/working", *EXTRA_ARGS)
+run(
+    sys.executable,
+    f"{SRC}/tools/kaggle/age_model/train_age.py",
+    "--prep",
+    os.path.dirname(prep[0]),
+    "--crops",
+    os.path.dirname(crops[0]),
+    "--out",
+    "/kaggle/working",
+    *EXTRA_ARGS,
+)

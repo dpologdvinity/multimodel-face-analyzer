@@ -1,4 +1,5 @@
 """The streamlit_app.py demo entrypoint boots in demo mode when the demo weights are present."""
+
 import importlib.util
 import json
 import os
@@ -79,7 +80,9 @@ def test_a_source_change_reloads_exactly_once_across_concurrent_runs(tmp_path):
         return True
 
     def run():
-        return streamlit_app.reload_if_source_changed(state, streamlit_app.source_fingerprint(source), purge)
+        return streamlit_app.reload_if_source_changed(
+            state, streamlit_app.source_fingerprint(source), purge
+        )
 
     assert [run(), run()] == [False, False]
     stat = module.stat()
@@ -101,8 +104,11 @@ def test_purge_waits_for_a_running_analysis():
 
     slot = old_demo._ANALYSIS_SLOT
     # patch.dict restores sys.modules afterwards, so the purge never leaks into other tests.
-    with patch.dict(sys.modules), patch.object(st.cache_resource, "clear") as clear_resource, \
-            patch.object(st.cache_data, "clear") as clear_data:
+    with (
+        patch.dict(sys.modules),
+        patch.object(st.cache_resource, "clear") as clear_resource,
+        patch.object(st.cache_data, "clear") as clear_data,
+    ):
         slot.acquire()
         try:
             assert streamlit_app.purge_package() is False
@@ -112,18 +118,27 @@ def test_purge_waits_for_a_running_analysis():
             slot.release()
 
         assert streamlit_app.purge_package() is True
-        assert not any(name == "face_analyzer" or name.startswith("face_analyzer.") for name in sys.modules)
+        assert not any(
+            name == "face_analyzer" or name.startswith("face_analyzer.")
+            for name in sys.modules
+        )
         clear_resource.assert_called_once()
         clear_data.assert_called_once()
     assert sys.modules["face_analyzer.demo"] is old_demo
 
 
-@pytest.mark.parametrize("evict_first", [False, True], ids=["purge", "watcher-evicted-demo-first"])
+@pytest.mark.parametrize(
+    "evict_first", [False, True], ids=["purge", "watcher-evicted-demo-first"]
+)
 def test_one_analysis_semaphore_survives_a_reload(evict_first):
     import face_analyzer.demo as old_demo
 
     slot = old_demo._ANALYSIS_SLOT
-    with patch.dict(sys.modules), patch.object(st.cache_resource, "clear"), patch.object(st.cache_data, "clear"):
+    with (
+        patch.dict(sys.modules),
+        patch.object(st.cache_resource, "clear"),
+        patch.object(st.cache_data, "clear"),
+    ):
         if evict_first:
             # Streamlit's own file watcher can drop a changed module before the entry point runs.
             del sys.modules["face_analyzer.demo"]
@@ -137,7 +152,11 @@ def test_one_analysis_semaphore_survives_a_failed_import():
     import face_analyzer.demo as old_demo
 
     slot = old_demo._ANALYSIS_SLOT
-    with patch.dict(sys.modules), patch.object(st.cache_resource, "clear"), patch.object(st.cache_data, "clear"):
+    with (
+        patch.dict(sys.modules),
+        patch.object(st.cache_resource, "clear"),
+        patch.object(st.cache_data, "clear"),
+    ):
         assert streamlit_app.purge_package() is True
         # A None entry makes the import fail, as a half-written file mid-pull would.
         sys.modules["face_analyzer.demo"] = None

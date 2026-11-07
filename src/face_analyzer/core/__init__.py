@@ -1,4 +1,5 @@
 """Core types, constants, and image processing utilities."""
+
 from .constants import (
     AGE_LIST,
     AGE_LIST_RANGES,

@@ -11,6 +11,7 @@ attribute models.
 
     python tools/fetch_fairface.py [--config 1.25] [--dest data/fairface]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -43,19 +44,33 @@ def sha256_of(path: Path) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n", 1)[0])
-    parser.add_argument("--config", choices=sorted(FILENAMES), default="1.25",
-                        help="face padding of the crops (default 1.25)")
+    parser.add_argument(
+        "--config",
+        choices=sorted(FILENAMES),
+        default="1.25",
+        help="face padding of the crops (default 1.25)",
+    )
     parser.add_argument("--dest", type=Path, default=ROOT / "data" / "fairface")
     args = parser.parse_args()
 
     args.dest.mkdir(parents=True, exist_ok=True)
-    local = Path(hf_hub_download(
-        repo_id=REPO_ID, repo_type="dataset", revision=REVISION,
-        filename=FILENAMES[args.config], local_dir=args.dest,
-    ))
+    local = Path(
+        hf_hub_download(
+            repo_id=REPO_ID,
+            repo_type="dataset",
+            revision=REVISION,
+            filename=FILENAMES[args.config],
+            local_dir=args.dest,
+        )
+    )
     manifest = {
-        "repo_id": REPO_ID, "revision": REVISION, "config": args.config, "split": "validation",
-        "file": local.name, "sha256": sha256_of(local), "license": "CC BY 4.0",
+        "repo_id": REPO_ID,
+        "revision": REVISION,
+        "config": args.config,
+        "split": "validation",
+        "file": local.name,
+        "sha256": sha256_of(local),
+        "license": "CC BY 4.0",
     }
     (local.parent / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print(f"{local} ({local.stat().st_size / 1e6:.1f} MB) sha256={manifest['sha256']}")

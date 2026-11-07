@@ -15,7 +15,7 @@ class RemoteAccessBoundaryTests(unittest.TestCase):
 
         self.assertIn("--server.enableXsrfProtection=true", dockerfile)
         self.assertNotIn('docker run -d -p "${PORT}:8501"', run_script)
-        self.assertIn('127.0.0.1:${PORT}:8501', run_script)
+        self.assertIn("127.0.0.1:${PORT}:8501", run_script)
         self.assertIn("no user authentication or authorization", setup_doc)
         self.assertIn("authenticating, TLS-terminating reverse proxy", setup_doc)
 

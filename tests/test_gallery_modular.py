@@ -1,4 +1,5 @@
 """Tests for the gallery subpackage (src/face_analyzer/gallery/): database, eigenfaces, and identity search."""
+
 from __future__ import annotations
 
 import sqlite3
@@ -26,6 +27,7 @@ class DatabaseTests(unittest.TestCase):
             face = np.zeros((32, 32, 3), dtype=np.uint8)
 
             import face_analyzer.gallery.database as db_mod
+
             with (
                 mock.patch.object(db_mod, "FACES_DB_FILE", db_file),
                 mock.patch.object(db_mod, "FACES_DIR", faces_dir),
@@ -38,7 +40,9 @@ class DatabaseTests(unittest.TestCase):
             self.assertTrue((faces_dir / "42.jpg").is_file())
             self.assertTrue((eigen_dir / "42.jpg").is_file())
             with sqlite3.connect(db_file) as conn:
-                count = conn.execute("SELECT COUNT(*) FROM faces WHERE id = 42").fetchone()[0]
+                count = conn.execute(
+                    "SELECT COUNT(*) FROM faces WHERE id = 42"
+                ).fetchone()[0]
             self.assertEqual(count, 1)
 
     def test_save_face_rollback_on_write_failure(self):
@@ -53,6 +57,7 @@ class DatabaseTests(unittest.TestCase):
             face = np.zeros((32, 32, 3), dtype=np.uint8)
 
             import face_analyzer.gallery.database as db_mod
+
             with (
                 mock.patch.object(db_mod, "FACES_DB_FILE", db_file),
                 mock.patch.object(db_mod, "FACES_DIR", faces_dir),
@@ -81,6 +86,7 @@ class DatabaseTests(unittest.TestCase):
             face = np.zeros((32, 32, 3), dtype=np.uint8)
 
             import face_analyzer.gallery.database as db_mod
+
             with (
                 mock.patch.object(db_mod, "FACES_DB_FILE", db_file),
                 mock.patch.object(db_mod, "FACES_DIR", faces_dir),
@@ -174,8 +180,12 @@ class EigenfacesTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             eigen_dir = Path(tmp)
-            cv2.imwrite(str(eigen_dir / "1.jpg"), _crop_and_resize_for_eigenfaces(face_a))
-            cv2.imwrite(str(eigen_dir / "2.jpg"), _crop_and_resize_for_eigenfaces(face_b))
+            cv2.imwrite(
+                str(eigen_dir / "1.jpg"), _crop_and_resize_for_eigenfaces(face_a)
+            )
+            cv2.imwrite(
+                str(eigen_dir / "2.jpg"), _crop_and_resize_for_eigenfaces(face_b)
+            )
 
             with (
                 mock.patch.object(ef_mod, "EIGEN_DIR", eigen_dir),
@@ -226,10 +236,17 @@ class SearchTests(unittest.TestCase):
             # Mock detect_faces to return one box for every image
             fake_box = (0, 0, 64, 64)
             with (
-                mock.patch("face_analyzer.gallery.search.detect_faces", return_value=[fake_box]),
-                mock.patch("face_analyzer.gallery.search.compute_face_embedding", return_value=dummy_embedding),
+                mock.patch(
+                    "face_analyzer.gallery.search.detect_faces", return_value=[fake_box]
+                ),
+                mock.patch(
+                    "face_analyzer.gallery.search.compute_face_embedding",
+                    return_value=dummy_embedding,
+                ),
             ):
-                gallery = build_gallery_from_directory(mock_face_net, mock_recog_net, gallery_dir)
+                gallery = build_gallery_from_directory(
+                    mock_face_net, mock_recog_net, gallery_dir
+                )
 
         self.assertIn("Alice Smith", gallery)
         self.assertIn("Bob Jones", gallery)
@@ -248,8 +265,12 @@ class SearchTests(unittest.TestCase):
             mock_face_net = mock.MagicMock()
             mock_recog_net = mock.MagicMock()
 
-            with mock.patch("face_analyzer.gallery.search.detect_faces", return_value=[]):
-                gallery = build_gallery_from_directory(mock_face_net, mock_recog_net, gallery_dir)
+            with mock.patch(
+                "face_analyzer.gallery.search.detect_faces", return_value=[]
+            ):
+                gallery = build_gallery_from_directory(
+                    mock_face_net, mock_recog_net, gallery_dir
+                )
 
         self.assertEqual(gallery, {})
 

@@ -28,13 +28,17 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("model", type=Path, help="Path to the original ONNX model")
     parser.add_argument("output", type=Path, help="Path for the new int8 ONNX model")
-    parser.add_argument("--per-channel", action="store_true", help="Quantize weights per channel")
+    parser.add_argument(
+        "--per-channel", action="store_true", help="Quantize weights per channel"
+    )
     args = parser.parse_args()
 
     quantize_model(args.model, args.output, args.per_channel)
     source_size = args.model.stat().st_size / (1024 * 1024)
     output_size = args.output.stat().st_size / (1024 * 1024)
-    print(f"source_mb={source_size:.2f} quantized_mb={output_size:.2f} reduction={1 - output_size / source_size:.1%}")
+    print(
+        f"source_mb={source_size:.2f} quantized_mb={output_size:.2f} reduction={1 - output_size / source_size:.1%}"
+    )
 
 
 if __name__ == "__main__":

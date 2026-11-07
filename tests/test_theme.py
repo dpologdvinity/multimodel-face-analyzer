@@ -1,4 +1,5 @@
 """Theme tokens, WCAG AA contrast, rendering, and fallback for unknown theme names."""
+
 import pytest
 from streamlit.testing.v1 import AppTest
 
@@ -15,19 +16,42 @@ from face_analyzer.ui.theme import (
 )
 
 REQUIRED_TOKENS = {
-    "bg", "surface", "surface-raised", "line", "line-strong",
-    "text", "muted", "accent", "accent-ink", "ok", "warn", "alert", "box", "box-outline",
+    "bg",
+    "surface",
+    "surface-raised",
+    "line",
+    "line-strong",
+    "text",
+    "muted",
+    "accent",
+    "accent-ink",
+    "ok",
+    "warn",
+    "alert",
+    "box",
+    "box-outline",
 }
 SURFACES = ("bg", "surface", "surface-raised")
 FILLS = [(f"pop-{n}", f"pop-{n}-ink") for n in range(1, POP_COUNT + 1)]
-REMOVED_THEMES = ("Brutalist", "Light cyberpunk", "Synthwave", "Phosphor Green", "Midnight Enterprise",
-                  "Umbra", "Safelight", "Optical Bench", "Amber Terminal")
+REMOVED_THEMES = (
+    "Brutalist",
+    "Light cyberpunk",
+    "Synthwave",
+    "Phosphor Green",
+    "Midnight Enterprise",
+    "Umbra",
+    "Safelight",
+    "Optical Bench",
+    "Amber Terminal",
+)
 
 
 def _luminance(hex_color: str) -> float:
     """Return the WCAG relative luminance of a #rrggbb colour."""
-    channels = [int(hex_color[i:i + 2], 16) / 255 for i in (1, 3, 5)]
-    r, g, b = (c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in channels)
+    channels = [int(hex_color[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+    r, g, b = (
+        c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in channels
+    )
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
 
@@ -45,7 +69,10 @@ def test_contrast_helper_matches_known_ratios():
 def test_a_dark_and_a_light_theme_with_dark_first():
     assert THEME_NAMES == ["Night", "Day"]
     assert DEFAULT_THEME == THEME_NAMES[0]
-    assert [theme_label(name) for name in THEME_NAMES] == ["Night (dark)", "Day (light)"]
+    assert [theme_label(name) for name in THEME_NAMES] == [
+        "Night (dark)",
+        "Day (light)",
+    ]
 
 
 @pytest.mark.parametrize("name", THEME_NAMES)
@@ -55,7 +82,9 @@ def test_every_theme_defines_every_colour_token(name):
 
 
 @pytest.mark.parametrize("name", THEME_NAMES)
-@pytest.mark.parametrize("foreground", ["text", "muted", "accent", "ok", "warn", "alert"])
+@pytest.mark.parametrize(
+    "foreground", ["text", "muted", "accent", "ok", "warn", "alert"]
+)
 def test_text_tokens_meet_aa_on_every_surface(name, foreground):
     # Accent and status colours are also used as text (tabs, card headers, code), so they need
     # the 4.5:1 body-text ratio, not just the 3:1 one for UI components.
@@ -82,8 +111,12 @@ def test_text_on_accent_fills_meets_aa(name):
 def test_control_borders_and_accent_meet_ui_contrast(name):
     tokens = theme_tokens()[name]
     for surface in ("bg", "surface"):
-        assert contrast(tokens["line-strong"], tokens[surface]) >= 3, f"{name}: line-strong on {surface}"
-        assert contrast(tokens["accent"], tokens[surface]) >= 3, f"{name}: accent on {surface}"
+        assert contrast(tokens["line-strong"], tokens[surface]) >= 3, (
+            f"{name}: line-strong on {surface}"
+        )
+        assert contrast(tokens["accent"], tokens[surface]) >= 3, (
+            f"{name}: accent on {surface}"
+        )
 
 
 @pytest.mark.parametrize("name", THEME_NAMES)
@@ -97,15 +130,28 @@ def test_box_style_converts_theme_tokens_to_bgr():
     tokens = theme_tokens()["Day"]
     assert tokens["box"] == "#4b3cff"
     assert box_style("Day") == {
-        "box_color": (0xff, 0x3c, 0x4b), "box_outline": (0xff, 0xff, 0xff), "label_color": (0xff, 0x3c, 0x4b),
+        "box_color": (0xFF, 0x3C, 0x4B),
+        "box_outline": (0xFF, 0xFF, 0xFF),
+        "label_color": (0xFF, 0x3C, 0x4B),
     }
     assert box_style("Brutalist") == box_style(DEFAULT_THEME)
 
 
 def test_removed_themes_are_gone_from_the_stylesheet():
     css = stylesheet().lower()
-    for marker in ("light-theme", "amber-theme", "synthwave", "phosphor", "brutalist", "corporate-theme", "midnight",
-                   "theme-umbra", "theme-lumen", "theme-safelight", "theme-cyanotype"):
+    for marker in (
+        "light-theme",
+        "amber-theme",
+        "synthwave",
+        "phosphor",
+        "brutalist",
+        "corporate-theme",
+        "midnight",
+        "theme-umbra",
+        "theme-lumen",
+        "theme-safelight",
+        "theme-cyanotype",
+    ):
         assert marker not in css
 
 
@@ -125,7 +171,12 @@ def _render(theme=None) -> AppTest:
 
 
 def _markers(at: AppTest) -> list[str]:
-    return [cls for el in at.markdown for cls in THEME_MARKER_CLASSES.values() if f'class="{cls}"' in el.value]
+    return [
+        cls
+        for el in at.markdown
+        for cls in THEME_MARKER_CLASSES.values()
+        if f'class="{cls}"' in el.value
+    ]
 
 
 @pytest.mark.parametrize("name", THEME_NAMES)
@@ -151,9 +202,16 @@ def test_a_stale_session_theme_falls_back_to_dark(stale):
     assert _markers(at) == [THEME_MARKER_CLASSES[DEFAULT_THEME]]
 
 
-@pytest.mark.parametrize(("former", "successor"), [
-    ("Lumen", "Day"), ("Cyanotype", "Day"), ("Corporate Slate", "Day"), ("Umbra", "Night"), ("Safelight", "Night"),
-])
+@pytest.mark.parametrize(
+    ("former", "successor"),
+    [
+        ("Lumen", "Day"),
+        ("Cyanotype", "Day"),
+        ("Corporate Slate", "Day"),
+        ("Umbra", "Night"),
+        ("Safelight", "Night"),
+    ],
+)
 def test_reworked_themes_map_to_their_successors(former, successor):
     assert _render(former).sidebar.selectbox[0].value == successor
 

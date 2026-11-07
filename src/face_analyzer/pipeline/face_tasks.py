@@ -1,4 +1,5 @@
 """Per-feature attribute tasks that run in parallel on one detected face."""
+
 from __future__ import annotations
 
 import time
@@ -88,9 +89,15 @@ class _FaceInputs:
     mivolo_age_result: Any
 
 
-def _age_task(models: Models, config: AnalysisConfig, inputs: _FaceInputs) -> tuple[list, Any]:
+def _age_task(
+    models: Models, config: AnalysisConfig, inputs: _FaceInputs
+) -> tuple[list, Any]:
     """Run every active age backend; return (per-model pairs, most reliable model's answer)."""
-    face, metrics, face_adjustments = inputs.face, config.metrics, config.face_adjustments
+    face, metrics, face_adjustments = (
+        inputs.face,
+        config.metrics,
+        config.face_adjustments,
+    )
     pairs, estimates = [], {}
     for key in config.active_age:
         net = models.age_nets.get(key)
@@ -98,14 +105,23 @@ def _age_task(models: Models, config: AnalysisConfig, inputs: _FaceInputs) -> tu
             continue
         started = time.perf_counter()
         if key == "caffe":
-            probs = _cached_face_predict("age_probs", key, face, caffe_probabilities, net, inputs.blob227)
+            probs = _cached_face_predict(
+                "age_probs", key, face, caffe_probabilities, net, inputs.blob227
+            )
             bucket = int(np.argmax(probs))
             value = AGE_LIST[bucket]
             estimates[key] = float(np.mean(AGE_LIST_RANGES[bucket]))
         elif key == "fairface":
             probs = _cached_face_predict(
-                "age_probs", key, face, fairface_probabilities,
-                net, inputs.crop_frame, inputs.crop_box, "age_output", inputs.fairface_landmarks,
+                "age_probs",
+                key,
+                face,
+                fairface_probabilities,
+                net,
+                inputs.crop_frame,
+                inputs.crop_box,
+                "age_output",
+                inputs.fairface_landmarks,
             )
             value = fairface_age_label(probs)
             estimates[key] = float(np.mean(FAIRFACE_AGE_RANGES[int(np.argmax(probs))]))
@@ -113,12 +129,17 @@ def _age_task(models: Models, config: AnalysisConfig, inputs: _FaceInputs) -> tu
             dex_face = crop_face_dex(inputs.frame, inputs.box)
             if face_adjustments and any(face_adjustments.values()):
                 dex_face = apply_image_adjustments(dex_face, face_adjustments)
-            estimate = _cached_face_predict("age_estimate", key, dex_face, dex_age_estimate, net, dex_face)
+            estimate = _cached_face_predict(
+                "age_estimate", key, dex_face, dex_age_estimate, net, dex_face
+            )
             value = format_dex_age(estimate)
             if estimate is not None:
                 estimates[key] = estimate[0]
         elif key == "mivolo":
-            mivolo_result, mivolo_age_result = inputs.mivolo_result, inputs.mivolo_age_result
+            mivolo_result, mivolo_age_result = (
+                inputs.mivolo_result,
+                inputs.mivolo_age_result,
+            )
             if mivolo_result is None and mivolo_age_result is None:
                 continue
             age = mivolo_result[0] if mivolo_result is not None else mivolo_age_result
@@ -129,7 +150,9 @@ def _age_task(models: Models, config: AnalysisConfig, inputs: _FaceInputs) -> tu
     return pairs, select_age(estimates)
 
 
-def _gender_task(models: Models, config: AnalysisConfig, inputs: _FaceInputs) -> tuple[list, Any]:
+def _gender_task(
+    models: Models, config: AnalysisConfig, inputs: _FaceInputs
+) -> tuple[list, Any]:
     """Run every active gender backend; return (per-model pairs, most reliable model's answer)."""
     face, metrics = inputs.face, config.metrics
     pairs = []
@@ -139,15 +162,26 @@ def _gender_task(models: Models, config: AnalysisConfig, inputs: _FaceInputs) ->
             continue
         started = time.perf_counter()
         if key == "caffe":
-            probs = _cached_face_predict("gender_probs", key, face, caffe_probabilities, net, inputs.blob227)
+            probs = _cached_face_predict(
+                "gender_probs", key, face, caffe_probabilities, net, inputs.blob227
+            )
             value = GENDER_LIST[int(np.argmax(probs))]
         elif key == "deepface":
-            probs = _cached_face_predict("gender_probs", key, face, deepface_probabilities, net, face)
+            probs = _cached_face_predict(
+                "gender_probs", key, face, deepface_probabilities, net, face
+            )
             value = "Male" if np.argmax(probs) == 1 else "Female"
         elif key == "fairface":
             probs = _cached_face_predict(
-                "gender_probs", key, face, fairface_probabilities,
-                net, inputs.crop_frame, inputs.crop_box, "gender_output", inputs.fairface_landmarks,
+                "gender_probs",
+                key,
+                face,
+                fairface_probabilities,
+                net,
+                inputs.crop_frame,
+                inputs.crop_box,
+                "gender_output",
+                inputs.fairface_landmarks,
             )
             value = fairface_gender_label(probs)
         elif key == "mivolo":
@@ -159,9 +193,15 @@ def _gender_task(models: Models, config: AnalysisConfig, inputs: _FaceInputs) ->
     return pairs, select_gender(dict(pairs))
 
 
-def _emotion_task(models: Models, config: AnalysisConfig, inputs: _FaceInputs) -> tuple[list, Any]:
+def _emotion_task(
+    models: Models, config: AnalysisConfig, inputs: _FaceInputs
+) -> tuple[list, Any]:
     """Run every active emotion backend; return (per-model pairs, fused answer)."""
-    face, metrics, face_adjustments = inputs.face, config.metrics, config.face_adjustments
+    face, metrics, face_adjustments = (
+        inputs.face,
+        config.metrics,
+        config.face_adjustments,
+    )
     pairs = []
     for key in config.active_emotion:
         net = models.emotion_nets.get(key)
@@ -169,24 +209,37 @@ def _emotion_task(models: Models, config: AnalysisConfig, inputs: _FaceInputs) -
             continue
         started = time.perf_counter()
         if key == "dan":
-            value = _cached_face_predict("emotion", key, face, predict_emotion_dan, net, face)
+            value = _cached_face_predict(
+                "emotion", key, face, predict_emotion_dan, net, face
+            )
         elif key == "mini_xception":
-            value = _cached_face_predict("emotion", key, face, predict_emotion_mini_xception, net, face)
+            value = _cached_face_predict(
+                "emotion", key, face, predict_emotion_mini_xception, net, face
+            )
         elif key == "ferplus":
             ferplus_face = crop_region(inputs.frame, *inputs.box)
             if face_adjustments and any(face_adjustments.values()):
                 ferplus_face = apply_image_adjustments(ferplus_face, face_adjustments)
             value = _cached_face_predict(
-                "emotion", key, ferplus_face, predict_emotion_ferplus, net, ferplus_face,
+                "emotion",
+                key,
+                ferplus_face,
+                predict_emotion_ferplus,
+                net,
+                ferplus_face,
             )
         else:
-            value = _cached_face_predict("emotion", key, face, predict_emotion_hsemotion, net, face)
+            value = _cached_face_predict(
+                "emotion", key, face, predict_emotion_hsemotion, net, face
+            )
         pairs.append((key, value))
         _record_model_latency(metrics, "emotion", key, started)
     return pairs, fuse_emotion(dict(pairs))
 
 
-def _race_task(models: Models, config: AnalysisConfig, inputs: _FaceInputs) -> tuple[list, Any]:
+def _race_task(
+    models: Models, config: AnalysisConfig, inputs: _FaceInputs
+) -> tuple[list, Any]:
     """Run every active race backend; return (per-model pairs, best-model answer)."""
     face, metrics = inputs.face, config.metrics
     pairs = []
@@ -197,12 +250,21 @@ def _race_task(models: Models, config: AnalysisConfig, inputs: _FaceInputs) -> t
         started = time.perf_counter()
         if key == "fairface":
             probs = _cached_face_predict(
-                "race_probs", key, face, fairface_probabilities,
-                net, inputs.crop_frame, inputs.crop_box, "race_output", inputs.fairface_landmarks,
+                "race_probs",
+                key,
+                face,
+                fairface_probabilities,
+                net,
+                inputs.crop_frame,
+                inputs.crop_box,
+                "race_output",
+                inputs.fairface_landmarks,
             )
             value = fairface_race_label(probs)
         else:
-            probs = _cached_face_predict("race_probs", key, face, deepface_probabilities, net, face)
+            probs = _cached_face_predict(
+                "race_probs", key, face, deepface_probabilities, net, face
+            )
             value = _format_race_label(probs, RACE_LABELS_DEEPFACE)
         pairs.append((key, value))
         _record_model_latency(metrics, "race", key, started)
@@ -223,18 +285,30 @@ def _gaze_task(models: Models, config: AnalysisConfig, inputs: _FaceInputs) -> l
     return pairs
 
 
-def _head_pose_task(models: Models, config: AnalysisConfig, inputs: _FaceInputs) -> list:
+def _head_pose_task(
+    models: Models, config: AnalysisConfig, inputs: _FaceInputs
+) -> list:
     """Estimate head pose with every active gaze backend (they share the landmarker)."""
     pairs = []
     for key in config.active_gaze:
         net = models.gaze_nets.get(key)
         if net is not None:
-            pairs.append((key, predict_head_pose_mediapipe(net, inputs.face, inputs.landmarker_result)))
+            pairs.append(
+                (
+                    key,
+                    predict_head_pose_mediapipe(
+                        net, inputs.face, inputs.landmarker_result
+                    ),
+                )
+            )
     return pairs
 
 
 def _recognition_task(
-    models: Models, config: AnalysisConfig, inputs: _FaceInputs, lbph_trained: Any,
+    models: Models,
+    config: AnalysisConfig,
+    inputs: _FaceInputs,
+    lbph_trained: Any,
 ) -> tuple[list, Any]:
     """Match the face against the gallery (embeddings) or the trained LBPH recognizer."""
     face = inputs.face
@@ -253,7 +327,9 @@ def _recognition_task(
                 match = predict_identity_lbph(recognizer, label_names, face)
                 value = f"{match[0]} ({match[1]:.0f})" if match else "UNKNOWN"
         else:
-            embedding = _cached_face_predict("embedding", key, face, compute_face_embedding, net, face)
+            embedding = _cached_face_predict(
+                "embedding", key, face, compute_face_embedding, net, face
+            )
             match = match_face_identity(embedding, config.gallery)
             value = f"{match[0]} ({match[1] * 100:.0f}%)" if match else "UNKNOWN"
         pairs.append((key, value))
@@ -269,7 +345,9 @@ def _glasses_task(models: Models, config: AnalysisConfig, inputs: _FaceInputs) -
         if net is None:
             continue
         started = time.perf_counter()
-        value = _cached_face_predict("glasses", key, inputs.face, predict_glasses_mobilenet, net, inputs.face)
+        value = _cached_face_predict(
+            "glasses", key, inputs.face, predict_glasses_mobilenet, net, inputs.face
+        )
         pairs.append((key, value))
         _record_model_latency(config.metrics, "glasses", key, started)
     return pairs
@@ -283,13 +361,17 @@ def _mask_task(models: Models, config: AnalysisConfig, inputs: _FaceInputs) -> l
         if net is None:
             continue
         started = time.perf_counter()
-        value = _cached_face_predict("mask", key, inputs.face, predict_mask_mobilenetv2, net, inputs.face)
+        value = _cached_face_predict(
+            "mask", key, inputs.face, predict_mask_mobilenetv2, net, inputs.face
+        )
         pairs.append((key, value))
         _record_model_latency(config.metrics, "mask", key, started)
     return pairs
 
 
-def _eye_color_task(models: Models, config: AnalysisConfig, inputs: _FaceInputs) -> list:
+def _eye_color_task(
+    models: Models, config: AnalysisConfig, inputs: _FaceInputs
+) -> list:
     """Classify eye color, using the face-mesh points when the landmarker found any."""
     face, points = inputs.face, inputs.points
     pairs = []
@@ -301,7 +383,9 @@ def _eye_color_task(models: Models, config: AnalysisConfig, inputs: _FaceInputs)
         if points is not None:
             value = predict_eye_color_colorimetric(net, face, points)
         else:
-            value = _cached_face_predict("eye_color", key, face, predict_eye_color_colorimetric, net, face)
+            value = _cached_face_predict(
+                "eye_color", key, face, predict_eye_color_colorimetric, net, face
+            )
         pairs.append((key, value))
         _record_model_latency(config.metrics, "eye_color", key, started)
     return pairs
@@ -313,7 +397,9 @@ def _liveness_task(config: AnalysisConfig, inputs: _FaceInputs) -> tuple[list, A
         return [], None
     started = time.perf_counter()
     if inputs.track_id is not None:
-        result = config.liveness_tracker.update(inputs.track_id, inputs.blink_score, inputs.texture_score)
+        result = config.liveness_tracker.update(
+            inputs.track_id, inputs.blink_score, inputs.texture_score
+        )
     else:
         result = assess_static_liveness(inputs.texture_score)
     _record_model_latency(config.metrics, "liveness", "mediapipe", started)

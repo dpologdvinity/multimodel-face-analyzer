@@ -1,4 +1,5 @@
 """Image transformations, colorization, alignment, and 3D reconstruction."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -46,7 +47,9 @@ def colorize_frame(net: Any, frame_bgr: np.ndarray) -> np.ndarray:
     return (255 * colorized).astype("uint8")
 
 
-def maybe_colorize(models: Any, frame_bgr: np.ndarray, active_colorization: set) -> tuple[np.ndarray, bool]:
+def maybe_colorize(
+    models: Any, frame_bgr: np.ndarray, active_colorization: set
+) -> tuple[np.ndarray, bool]:
     """Auto-colorize frame if grayscale and colorization backend is active."""
     net = models.colorization_nets.get("eccv16")
     if net is None or "eccv16" not in active_colorization:
@@ -91,9 +94,13 @@ def apply_intensity_transform(
     raise ValueError(f"Unknown intensity method: {method}")
 
 
-def apply_enhance(face_bgr: np.ndarray, brightness: float = 10.0, contrast: float = 1.3) -> np.ndarray:
+def apply_enhance(
+    face_bgr: np.ndarray, brightness: float = 10.0, contrast: float = 1.3
+) -> np.ndarray:
     """Enhance image with brightness/contrast adjustment and CLAHE/equalization."""
-    adjusted = cv2.addWeighted(face_bgr, contrast, np.zeros_like(face_bgr), 0, brightness)
+    adjusted = cv2.addWeighted(
+        face_bgr, contrast, np.zeros_like(face_bgr), 0, brightness
+    )
     lab = cv2.cvtColor(adjusted, cv2.COLOR_BGR2LAB)
     lum, a, b = cv2.split(lab)
     lum = cv2.equalizeHist(lum)
@@ -125,18 +132,25 @@ def apply_denoise(face_bgr: np.ndarray, method: str = "nlm") -> np.ndarray:
     if method == "median":
         return cv2.medianBlur(face_bgr, 5)
     if method == "nlm":
-        return cv2.fastNlMeansDenoisingColored(face_bgr, h=10, hColor=10, templateWindowSize=7, searchWindowSize=21)
+        return cv2.fastNlMeansDenoisingColored(
+            face_bgr, h=10, hColor=10, templateWindowSize=7, searchWindowSize=21
+        )
     raise ValueError(f"Unknown denoise method: {method}")
 
 
 def apply_bilateral_filter(
-    face_bgr: np.ndarray, diameter: int = 15, sigma_color: float = 75.0, sigma_space: float = 75.0,
+    face_bgr: np.ndarray,
+    diameter: int = 15,
+    sigma_color: float = 75.0,
+    sigma_space: float = 75.0,
 ) -> np.ndarray:
     """Apply edge-preserving bilateral filter to image."""
     return cv2.bilateralFilter(face_bgr, diameter, sigma_color, sigma_space)
 
 
-def apply_wavelet_denoise(face_bgr: np.ndarray, threshold: float = 0.05, wavelet: str = "db1") -> np.ndarray:
+def apply_wavelet_denoise(
+    face_bgr: np.ndarray, threshold: float = 0.05, wavelet: str = "db1"
+) -> np.ndarray:
     """Apply 2D wavelet decomposition soft-threshold denoising."""
     import pywt
 
@@ -145,13 +159,19 @@ def apply_wavelet_denoise(face_bgr: np.ndarray, threshold: float = 0.05, wavelet
     for channel in channels:
         coeffs = pywt.wavedec2(channel, wavelet, level=2)
         detail_coeffs = coeffs[1:]
-        max_detail = max((np.abs(d).max() for level in detail_coeffs for d in level), default=1.0) or 1.0
+        max_detail = (
+            max(
+                (np.abs(d).max() for level in detail_coeffs for d in level), default=1.0
+            )
+            or 1.0
+        )
         abs_threshold = threshold * max_detail
         thresholded = [coeffs[0]] + [
-            tuple(pywt.threshold(d, abs_threshold, mode="soft") for d in level) for level in detail_coeffs
+            tuple(pywt.threshold(d, abs_threshold, mode="soft") for d in level)
+            for level in detail_coeffs
         ]
         reconstructed = pywt.waverec2(thresholded, wavelet)
-        denoised_channels.append(reconstructed[:channel.shape[0], :channel.shape[1]])
+        denoised_channels.append(reconstructed[: channel.shape[0], : channel.shape[1]])
 
     return np.clip(cv2.merge(denoised_channels), 0, 255).astype(np.uint8)
 
@@ -172,7 +192,9 @@ def apply_image_op(face_bgr: np.ndarray, op: str, **params: Any) -> np.ndarray:
     return dispatch[op](face_bgr, **params)
 
 
-def run_3d_reconstruction(models: Any, face_bgr: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+def run_3d_reconstruction(
+    models: Any, face_bgr: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
     """Reconstruct 3D face mesh using Deep3DFaceRecon."""
     if landmarks_5pt_from_mediapipe is None or reconstruct_face_3d is None:
         return None
@@ -191,10 +213,14 @@ def run_3d_reconstruction(models: Any, face_bgr: np.ndarray) -> tuple[np.ndarray
 
     h, w = face_bgr.shape[:2]
     landmarks_5pt = landmarks_5pt_from_mediapipe(points, w, h)
-    return reconstruct_face_3d(recon_net, bfm_model, face_bgr, landmarks_5pt, lm3d_template)
+    return reconstruct_face_3d(
+        recon_net, bfm_model, face_bgr, landmarks_5pt, lm3d_template
+    )
 
 
-def run_age_progression(models: Any, face_bgr: np.ndarray, source_age: float, target_age: float) -> np.ndarray | None:
+def run_age_progression(
+    models: Any, face_bgr: np.ndarray, source_age: float, target_age: float
+) -> np.ndarray | None:
     """Progress or regress face age using FRAN model."""
     if age_progress_face is None:
         return None
@@ -206,28 +232,41 @@ def run_age_progression(models: Any, face_bgr: np.ndarray, source_age: float, ta
     return cv2.cvtColor(aged_rgb, cv2.COLOR_RGB2BGR)
 
 
-def _margin_align(frame_bgr: np.ndarray, box: tuple[int, int, int, int], output_size: int, margin: float) -> np.ndarray:
+def _margin_align(
+    frame_bgr: np.ndarray,
+    box: tuple[int, int, int, int],
+    output_size: int,
+    margin: float,
+) -> np.ndarray:
     """Crop and center face box with margin context resized to output size."""
     x1, y1, x2, y2 = box
     w, h = x2 - x1, y2 - y1
     cx, cy = (x1 + x2) / 2.0, (y1 + y2) / 2.0
     scale = output_size / (max(w, h) * margin)
-    m = np.array([
-        [scale, 0, output_size / 2 - scale * cx],
-        [0, scale, output_size / 2 - scale * cy],
-    ], dtype=np.float32)
+    m = np.array(
+        [
+            [scale, 0, output_size / 2 - scale * cx],
+            [0, scale, output_size / 2 - scale * cy],
+        ],
+        dtype=np.float32,
+    )
     return cv2.warpAffine(frame_bgr, m, (output_size, output_size), borderValue=0.0)
 
 
 # FairFace's reference with each eye's two corners merged into its center, for detectors (RetinaFace,
 # SCRFD) whose five points are eye centers, nose tip and mouth corners. Order: image-right eye,
 # image-left eye, nose, matching the five-point reference.
-_FAIRFACE_REFERENCE_EYES_NOSE = np.array([
-    FAIRFACE_REFERENCE_LANDMARKS[0:2].mean(axis=0),
-    FAIRFACE_REFERENCE_LANDMARKS[2:4].mean(axis=0),
-    FAIRFACE_REFERENCE_LANDMARKS[4],
-])
-_FAIRFACE_REFERENCES = {5: FAIRFACE_REFERENCE_LANDMARKS, 3: _FAIRFACE_REFERENCE_EYES_NOSE}
+_FAIRFACE_REFERENCE_EYES_NOSE = np.array(
+    [
+        FAIRFACE_REFERENCE_LANDMARKS[0:2].mean(axis=0),
+        FAIRFACE_REFERENCE_LANDMARKS[2:4].mean(axis=0),
+        FAIRFACE_REFERENCE_LANDMARKS[4],
+    ]
+)
+_FAIRFACE_REFERENCES = {
+    5: FAIRFACE_REFERENCE_LANDMARKS,
+    3: _FAIRFACE_REFERENCE_EYES_NOSE,
+}
 # A frontal face's eye centers sit about 0.45 of the detector box width apart (0.46-0.47 on the
 # crew photo's RetinaFace boxes), shrinking with the cosine of the yaw. Below 0.15 (beyond roughly
 # 70 degrees) the foreshortened eye distance sets the similarity scale, so the warp zooms into one
@@ -236,7 +275,8 @@ _MIN_EYE_DISTANCE_TO_BOX_WIDTH = 0.15
 
 
 def fairface_landmarks_from_detector(
-    points: np.ndarray | None, box_width: float | None = None,
+    points: np.ndarray | None,
+    box_width: float | None = None,
 ) -> np.ndarray | None:
     """Convert detector five-point landmarks (image-left eye first) to FairFace's eyes-and-nose order.
 
@@ -251,31 +291,49 @@ def fairface_landmarks_from_detector(
     # A similarity transform cannot mirror, so swapped eyes would align the face upside down.
     if right_eye[0] - left_eye[0] < 1:
         return None
-    if box_width is not None and np.linalg.norm(right_eye - left_eye) < _MIN_EYE_DISTANCE_TO_BOX_WIDTH * box_width:
+    if (
+        box_width is not None
+        and np.linalg.norm(right_eye - left_eye)
+        < _MIN_EYE_DISTANCE_TO_BOX_WIDTH * box_width
+    ):
         return None
     return np.stack([right_eye, left_eye, nose])
 
 
 def fairface_landmarks_from_mediapipe(
-    points: list[tuple[float, float]], width: int, height: int,
+    points: list[tuple[float, float]],
+    width: int,
+    height: int,
 ) -> np.ndarray | None:
     """Convert MediaPipe landmarks to FairFace five-point pixel order."""
     if len(points) <= max(FAIRFACE_LANDMARK_INDICES) or width <= 0 or height <= 0:
         return None
-    selected = np.asarray([points[index] for index in FAIRFACE_LANDMARK_INDICES], dtype=np.float32)
-    if selected.shape != (5, 2) or not np.isfinite(selected).all() or np.any((selected < 0) | (selected > 1)):
+    selected = np.asarray(
+        [points[index] for index in FAIRFACE_LANDMARK_INDICES], dtype=np.float32
+    )
+    if (
+        selected.shape != (5, 2)
+        or not np.isfinite(selected).all()
+        or np.any((selected < 0) | (selected > 1))
+    ):
         return None
     selected *= np.array([width, height], dtype=np.float32)
     return selected
 
 
 def align_face_with_landmarks(
-    frame_bgr: np.ndarray, landmarks: np.ndarray, output_size: int,
+    frame_bgr: np.ndarray,
+    landmarks: np.ndarray,
+    output_size: int,
 ) -> np.ndarray | None:
     """Align face to FairFace reference landmarks (five-point, or eyes and nose) by similarity transform."""
     source = np.asarray(landmarks, dtype=np.float64)
     reference = _FAIRFACE_REFERENCES.get(len(source)) if source.ndim == 2 else None
-    if reference is None or source.shape != reference.shape or not np.isfinite(source).all():
+    if (
+        reference is None
+        or source.shape != reference.shape
+        or not np.isfinite(source).all()
+    ):
         return None
     if np.linalg.matrix_rank(source - source.mean(axis=0)) < 2:
         return None
@@ -290,8 +348,11 @@ def align_face_with_landmarks(
         return None
     matrix = np.array([[a, -b, tx], [b, a, ty]])
     return cv2.warpAffine(
-        frame_bgr, matrix, (output_size, output_size),
-        flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP, borderValue=0.0,
+        frame_bgr,
+        matrix,
+        (output_size, output_size),
+        flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP,
+        borderValue=0.0,
     )
 
 
@@ -299,7 +360,9 @@ def _estimate_roll_angle(face_bgr: np.ndarray, eye_cascade: Any) -> float | None
     """Estimate head roll angle in degrees from eye detections."""
     face_gray = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2GRAY)
     with _lock_for(eye_cascade):
-        eyes = eye_cascade.detectMultiScale(face_gray, scaleFactor=1.1, minNeighbors=6, minSize=(20, 20))
+        eyes = eye_cascade.detectMultiScale(
+            face_gray, scaleFactor=1.1, minNeighbors=6, minSize=(20, 20)
+        )
     if len(eyes) < 2:
         return None
     eyes = sorted(eyes, key=lambda e: e[2] * e[3], reverse=True)[:2]
@@ -311,7 +374,9 @@ def _estimate_roll_angle(face_bgr: np.ndarray, eye_cascade: Any) -> float | None
 
 
 def level_face_region(
-    frame_bgr: np.ndarray, box: tuple[int, int, int, int], angle_deg: float | None,
+    frame_bgr: np.ndarray,
+    box: tuple[int, int, int, int],
+    angle_deg: float | None,
 ) -> tuple[np.ndarray, tuple[int, int, int, int]]:
     """Return (region, box) rotated level when the roll angle exceeds 3 degrees, else the inputs."""
     if _needs_leveling(angle_deg):
@@ -320,13 +385,18 @@ def level_face_region(
 
 
 def level_face_points(
-    frame_shape: tuple[int, ...], box: tuple[int, int, int, int], angle_deg: float | None, points: np.ndarray,
+    frame_shape: tuple[int, ...],
+    box: tuple[int, int, int, int],
+    angle_deg: float | None,
+    points: np.ndarray,
 ) -> np.ndarray:
     """Map frame points into the coordinates of the region level_face_region returns for the same face."""
     if not _needs_leveling(angle_deg):
         return points
     (rx1, ry1, _, _), _, m = _level_geometry(frame_shape, box, angle_deg)
-    return ((points - np.array([rx1, ry1], dtype=np.float32)) @ m[:, :2].T + m[:, 2]).astype(np.float32)
+    return (
+        (points - np.array([rx1, ry1], dtype=np.float32)) @ m[:, :2].T + m[:, 2]
+    ).astype(np.float32)
 
 
 def _needs_leveling(angle_deg: float | None) -> bool:
@@ -335,7 +405,10 @@ def _needs_leveling(angle_deg: float | None) -> bool:
 
 
 def _level_geometry(
-    frame_shape: tuple[int, ...], box: tuple[int, int, int, int], angle_deg: float, pad_factor: float = 0.8,
+    frame_shape: tuple[int, ...],
+    box: tuple[int, int, int, int],
+    angle_deg: float,
+    pad_factor: float = 0.8,
 ) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int], np.ndarray]:
     """Return the padded region's frame bounds, the box inside it and the leveling rotation matrix."""
     x1, y1, x2, y2 = box
@@ -351,10 +424,17 @@ def _level_geometry(
 
 
 def _rotate_region(
-    frame_bgr: np.ndarray, box: tuple[int, int, int, int], angle_deg: float, pad_factor: float = 0.8,
+    frame_bgr: np.ndarray,
+    box: tuple[int, int, int, int],
+    angle_deg: float,
+    pad_factor: float = 0.8,
 ) -> tuple[np.ndarray, tuple[int, int, int, int]]:
     """Rotate image region around face bounding box center to level roll angle."""
-    (rx1, ry1, rx2, ry2), local_box, m = _level_geometry(frame_bgr.shape, box, angle_deg, pad_factor)
+    (rx1, ry1, rx2, ry2), local_box, m = _level_geometry(
+        frame_bgr.shape, box, angle_deg, pad_factor
+    )
     region = frame_bgr[ry1:ry2, rx1:rx2]
-    rotated = cv2.warpAffine(region, m, (region.shape[1], region.shape[0]), borderMode=cv2.BORDER_REPLICATE)
+    rotated = cv2.warpAffine(
+        region, m, (region.shape[1], region.shape[0]), borderMode=cv2.BORDER_REPLICATE
+    )
     return rotated, local_box

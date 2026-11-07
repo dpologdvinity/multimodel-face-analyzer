@@ -1,4 +1,5 @@
 """Smoke tests that execute the Streamlit script headlessly via AppTest."""
+
 from pathlib import Path
 
 from streamlit.testing.v1 import AppTest

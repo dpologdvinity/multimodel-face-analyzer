@@ -79,4 +79,3 @@ def test_base_dir_is_repo_root():
     from face_analyzer.core.constants import BASE_DIR
 
     assert (BASE_DIR / "models").is_dir() and (BASE_DIR / "pyproject.toml").is_file()
-

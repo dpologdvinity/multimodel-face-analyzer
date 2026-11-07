@@ -1,4 +1,5 @@
 """Model loading and initialization routines for facial analysis backends."""
+
 from __future__ import annotations
 
 import os
@@ -85,6 +86,7 @@ except ImportError:
 
 try:
     import onnxruntime
+
     ONNXRUNTIME_SUPPORTED = True
 except ImportError:
     ONNXRUNTIME_SUPPORTED = False
@@ -119,11 +121,15 @@ def _ort_session(path: Path):
     threads = os.environ.get(ORT_THREADS_ENV_VAR, "").strip()
     if threads:
         if not threads.isdecimal() or int(threads) < 1:
-            raise ValueError(f"{ORT_THREADS_ENV_VAR} must be an integer of at least 1, got {threads!r}")
+            raise ValueError(
+                f"{ORT_THREADS_ENV_VAR} must be an integer of at least 1, got {threads!r}"
+            )
         options = onnxruntime.SessionOptions()
         options.intra_op_num_threads = int(threads)
         options.inter_op_num_threads = 1
-    return onnxruntime.InferenceSession(str(path), sess_options=options, providers=["CPUExecutionProvider"])
+    return onnxruntime.InferenceSession(
+        str(path), sess_options=options, providers=["CPUExecutionProvider"]
+    )
 
 
 def _present(*paths: Path) -> bool:
@@ -150,15 +156,27 @@ def load_models() -> Models:
         face_net = cv2.dnn.readNet(str(FACE_MODEL), str(FACE_PROTO))
 
     yolo_face_nets = {}
-    if native_model_selected("YOLO_FACE_MODEL", "yolo") and ONNXRUNTIME_SUPPORTED and _present(YOLO_FACE_MODEL):
+    if (
+        native_model_selected("YOLO_FACE_MODEL", "yolo")
+        and ONNXRUNTIME_SUPPORTED
+        and _present(YOLO_FACE_MODEL)
+    ):
         yolo_face_nets["yolo"] = _ort_session(YOLO_FACE_MODEL)
 
     scrfd_face_nets = {}
-    if native_model_selected("SCRFD_FACE_MODEL", "scrfd") and ONNXRUNTIME_SUPPORTED and _present(SCRFD_FACE_MODEL):
+    if (
+        native_model_selected("SCRFD_FACE_MODEL", "scrfd")
+        and ONNXRUNTIME_SUPPORTED
+        and _present(SCRFD_FACE_MODEL)
+    ):
         scrfd_face_nets["scrfd"] = _ort_session(SCRFD_FACE_MODEL)
 
     retinaface_nets = {}
-    if native_model_selected("RETINAFACE_MODEL", "retinaface") and ONNXRUNTIME_SUPPORTED and _present(RETINAFACE_MODEL):
+    if (
+        native_model_selected("RETINAFACE_MODEL", "retinaface")
+        and ONNXRUNTIME_SUPPORTED
+        and _present(RETINAFACE_MODEL)
+    ):
         retinaface_nets["retinaface"] = _ort_session(RETINAFACE_MODEL)
 
     if face_net is None and not (yolo_face_nets or scrfd_face_nets or retinaface_nets):
@@ -180,15 +198,27 @@ def load_models() -> Models:
         age_nets["dex"] = cv2.dnn.readNetFromCaffe(str(DEX_PROTO), str(DEX_MODEL))
 
     gender_nets = {}
-    if native_model_selected("GENDER_MODEL", "caffe") and _present(GENDER_PROTO, GENDER_MODEL):
+    if native_model_selected("GENDER_MODEL", "caffe") and _present(
+        GENDER_PROTO, GENDER_MODEL
+    ):
         gender_nets["caffe"] = cv2.dnn.readNet(str(GENDER_MODEL), str(GENDER_PROTO))
 
-    if native_model_selected("GENDER_MODEL", "deepface") and TF_SUPPORTED and _present(DEEPFACE_GENDER_MODEL):
+    if (
+        native_model_selected("GENDER_MODEL", "deepface")
+        and TF_SUPPORTED
+        and _present(DEEPFACE_GENDER_MODEL)
+    ):
         gender_nets["deepface"] = build_gender_model(str(DEEPFACE_GENDER_MODEL))
 
     recognition_nets = {}
-    if native_model_selected("RECOGNITION_MODEL", "vggface") and TF_SUPPORTED and _present(DEEPFACE_RECOGNITION_MODEL):
-        recognition_nets["vggface"] = build_recognition_model(str(DEEPFACE_RECOGNITION_MODEL))
+    if (
+        native_model_selected("RECOGNITION_MODEL", "vggface")
+        and TF_SUPPORTED
+        and _present(DEEPFACE_RECOGNITION_MODEL)
+    ):
+        recognition_nets["vggface"] = build_recognition_model(
+            str(DEEPFACE_RECOGNITION_MODEL)
+        )
     if native_model_selected("RECOGNITION_MODEL", "lbph") and hasattr(cv2, "face"):
         recognition_nets["lbph"] = True
 
@@ -207,19 +237,29 @@ def load_models() -> Models:
                 gender_nets["mivolo"] = mivolo_net
 
     emotion_nets = {}
-    if native_model_selected("EMOTION_MODEL", "dan") and TORCH_SUPPORTED and _present(EMOTION_MODEL):
+    if (
+        native_model_selected("EMOTION_MODEL", "dan")
+        and TORCH_SUPPORTED
+        and _present(EMOTION_MODEL)
+    ):
         net = DAN(num_class=7, num_head=4, pretrained=False)
         checkpoint = torch.load(str(EMOTION_MODEL), map_location="cpu")
         net.load_state_dict(checkpoint["model_state_dict"])
         net.eval()
         emotion_nets["dan"] = net
-    if native_model_selected("EMOTION_MODEL", "mini_xception") and TF_SUPPORTED and _present(MINI_XCEPTION_MODEL):
+    if (
+        native_model_selected("EMOTION_MODEL", "mini_xception")
+        and TF_SUPPORTED
+        and _present(MINI_XCEPTION_MODEL)
+    ):
         mini_xception_net = build_mini_xception((64, 64, 1), num_classes=7)
         mini_xception_net.load_weights(str(MINI_XCEPTION_MODEL))
         emotion_nets["mini_xception"] = mini_xception_net
     if native_model_selected("EMOTION_MODEL", "ferplus") and _present(FERPLUS_MODEL):
         emotion_nets["ferplus"] = cv2.dnn.readNetFromONNX(str(FERPLUS_MODEL))
-    if native_model_selected("EMOTION_MODEL", "hsemotion") and _present(HSEMOTION_MODEL):
+    if native_model_selected("EMOTION_MODEL", "hsemotion") and _present(
+        HSEMOTION_MODEL
+    ):
         emotion_nets["hsemotion"] = cv2.dnn.readNetFromONNX(str(HSEMOTION_MODEL))
 
     fairface_net = None
@@ -233,7 +273,11 @@ def load_models() -> Models:
     race_nets = {}
     if native_model_selected("RACE_MODEL", "fairface") and fairface_net is not None:
         race_nets["fairface"] = fairface_net
-    if native_model_selected("RACE_MODEL", "deepface") and TF_SUPPORTED and _present(DEEPFACE_RACE_MODEL):
+    if (
+        native_model_selected("RACE_MODEL", "deepface")
+        and TF_SUPPORTED
+        and _present(DEEPFACE_RACE_MODEL)
+    ):
         race_nets["deepface"] = build_race_model(str(DEEPFACE_RACE_MODEL))
 
     eye_color_nets = {}
@@ -243,14 +287,21 @@ def load_models() -> Models:
     liveness_nets: dict = {}
     face_landmarks_nets = {}
     gaze_nets = {}
-    face_landmarker_selected = (
-        native_model_selected("FACE_LANDMARKS_MODEL", "mediapipe")
-        or native_model_selected("LIVENESS_MODEL", "mediapipe")
-    )
-    if face_landmarker_selected and MEDIAPIPE_SUPPORTED and _present(FACE_LANDMARKER_MODEL):
+    face_landmarker_selected = native_model_selected(
+        "FACE_LANDMARKS_MODEL", "mediapipe"
+    ) or native_model_selected("LIVENESS_MODEL", "mediapipe")
+    if (
+        face_landmarker_selected
+        and MEDIAPIPE_SUPPORTED
+        and _present(FACE_LANDMARKER_MODEL)
+    ):
         options = mp.tasks.vision.FaceLandmarkerOptions(
-            base_options=mp.tasks.BaseOptions(model_asset_path=str(FACE_LANDMARKER_MODEL)),
-            output_face_blendshapes=native_model_selected("LIVENESS_MODEL", "mediapipe"),
+            base_options=mp.tasks.BaseOptions(
+                model_asset_path=str(FACE_LANDMARKER_MODEL)
+            ),
+            output_face_blendshapes=native_model_selected(
+                "LIVENESS_MODEL", "mediapipe"
+            ),
             running_mode=mp.tasks.vision.RunningMode.IMAGE,
         )
         with _silence_native_logs():
@@ -262,11 +313,19 @@ def load_models() -> Models:
         gaze_nets["mediapipe"] = landmarker
 
     glasses_nets = {}
-    if native_model_selected("GLASSES_MODEL", "mobilenet") and ONNXRUNTIME_SUPPORTED and _present(GLASSES_MODEL):
+    if (
+        native_model_selected("GLASSES_MODEL", "mobilenet")
+        and ONNXRUNTIME_SUPPORTED
+        and _present(GLASSES_MODEL)
+    ):
         glasses_nets["mobilenet"] = _ort_session(GLASSES_MODEL)
 
     mask_nets = {}
-    if native_model_selected("MASK_MODEL", "mobilenetv2") and TF_SUPPORTED and _present(MASK_MODEL):
+    if (
+        native_model_selected("MASK_MODEL", "mobilenetv2")
+        and TF_SUPPORTED
+        and _present(MASK_MODEL)
+    ):
         mask_nets["mobilenetv2"] = build_mask_model(str(MASK_MODEL))
 
     colorization_nets = {}
@@ -276,24 +335,36 @@ def load_models() -> Models:
         and _present(COLORIZATION_MODEL)
         and _present(COLORIZATION_PTS)
     ):
-        colorization_net = cv2.dnn.readNetFromCaffe(str(COLORIZATION_PROTO), str(COLORIZATION_MODEL))
+        colorization_net = cv2.dnn.readNetFromCaffe(
+            str(COLORIZATION_PROTO), str(COLORIZATION_MODEL)
+        )
         pts = np.load(str(COLORIZATION_PTS))
         class8 = colorization_net.getLayerId("class8_ab")
         conv8 = colorization_net.getLayerId("conv8_313_rh")
         pts = pts.transpose().reshape(2, 313, 1, 1)
         colorization_net.getLayer(class8).blobs = [pts.astype("float32")]
-        colorization_net.getLayer(conv8).blobs = [np.full([1, 313], 2.606, dtype="float32")]
+        colorization_net.getLayer(conv8).blobs = [
+            np.full([1, 313], 2.606, dtype="float32")
+        ]
         colorization_nets["eccv16"] = colorization_net
 
     hand_nets = {}
-    if native_model_selected("HAND_MODEL", "mediapipe") and MEDIAPIPE_SUPPORTED and _present(HAND_LANDMARKER_MODEL):
+    if (
+        native_model_selected("HAND_MODEL", "mediapipe")
+        and MEDIAPIPE_SUPPORTED
+        and _present(HAND_LANDMARKER_MODEL)
+    ):
         hand_options = mp.tasks.vision.HandLandmarkerOptions(
-            base_options=mp.tasks.BaseOptions(model_asset_path=str(HAND_LANDMARKER_MODEL)),
+            base_options=mp.tasks.BaseOptions(
+                model_asset_path=str(HAND_LANDMARKER_MODEL)
+            ),
             num_hands=2,
             running_mode=mp.tasks.vision.RunningMode.IMAGE,
         )
         with _silence_native_logs():
-            hand_nets["mediapipe"] = mp.tasks.vision.HandLandmarker.create_from_options(hand_options)
+            hand_nets["mediapipe"] = mp.tasks.vision.HandLandmarker.create_from_options(
+                hand_options
+            )
 
     reconstruction_3d_nets = {}
     if (
@@ -309,8 +380,14 @@ def load_models() -> Models:
         reconstruction_3d_nets["deep3d"] = (recon_net, bfm_model, lm3d_template)
 
     age_progression_nets = {}
-    if native_model_selected("AGE_PROGRESSION_MODEL", "franunet") and FACE_REAGING_SUPPORTED and _present(FACE_REAGING_MODEL):
-        age_progression_nets["franunet"] = build_face_reaging_model(str(FACE_REAGING_MODEL))
+    if (
+        native_model_selected("AGE_PROGRESSION_MODEL", "franunet")
+        and FACE_REAGING_SUPPORTED
+        and _present(FACE_REAGING_MODEL)
+    ):
+        age_progression_nets["franunet"] = build_face_reaging_model(
+            str(FACE_REAGING_MODEL)
+        )
 
     return Models(
         face_net,

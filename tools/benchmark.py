@@ -10,6 +10,7 @@ tools/score_fusion.py scores single-year answers, which is the stricter, like-fo
 
     FACE_ANALYZER_MODEL_DIR=/path/to/models python tools/benchmark.py [--detector ssd]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -45,13 +46,20 @@ RACE_ALIASES = {
 }
 
 EMOTION_ALIASES = {
-    "happy": "happy", "happiness": "happy",
-    "sad": "sad", "sadness": "sad",
-    "angry": "angry", "anger": "angry",
-    "surprise": "surprise", "surprised": "surprise",
-    "fear": "fear", "fearful": "fear",
-    "disgust": "disgust", "disgusted": "disgust",
-    "neutral": "neutral", "contempt": "contempt",
+    "happy": "happy",
+    "happiness": "happy",
+    "sad": "sad",
+    "sadness": "sad",
+    "angry": "angry",
+    "anger": "angry",
+    "surprise": "surprise",
+    "surprised": "surprise",
+    "fear": "fear",
+    "fearful": "fear",
+    "disgust": "disgust",
+    "disgusted": "disgust",
+    "neutral": "neutral",
+    "contempt": "contempt",
 }
 
 CONFIRMED_MODELS = {
@@ -89,7 +97,9 @@ def parse_confirmed(markdown: str) -> dict:
                 if not all(values):
                     raise ValueError(f"Empty label: {line}")
                 labels[current][feature] = [
-                    {"dark brown": "brown", "blond": "blonde", "gray": "grey"}.get(part, part)
+                    {"dark brown": "brown", "blond": "blonde", "gray": "grey"}.get(
+                        part, part
+                    )
                     for part in values
                 ]
     if not labels or any(not values for values in labels.values()):
@@ -109,17 +119,29 @@ def score_confirmed(records: list[dict], roster: dict = CONFIRMED_MODELS) -> dic
             if feature == "age":
                 bucket.update(within_5_years=0, bucket_contains=0)
             for record in labelled:
-                value = next((str(row["Output"]).strip().lower() for row in record["outputs"]
-                              if row["Feature"].lower() == feature
-                              and row["Model"].split(" (")[0] == model), "")
+                value = next(
+                    (
+                        str(row["Output"]).strip().lower()
+                        for row in record["outputs"]
+                        if row["Feature"].lower() == feature
+                        and row["Model"].split(" (")[0] == model
+                    ),
+                    "",
+                )
                 truth = record["truth"][feature]
                 if feature == "age":
                     if model == "best":
                         source = re.search(r"\((\w+)\)", value)
-                        source_value = next((str(row["Output"]).strip().lower()
-                                             for row in record["outputs"]
-                                             if source and row["Feature"].lower() == "age"
-                                             and row["Model"] == source.group(1)), "")
+                        source_value = next(
+                            (
+                                str(row["Output"]).strip().lower()
+                                for row in record["outputs"]
+                                if source
+                                and row["Feature"].lower() == "age"
+                                and row["Model"] == source.group(1)
+                            ),
+                            "",
+                        )
                         source_span = parse_age(source_value)
                         if "uncertain" in source_value or source_span is None:
                             continue
@@ -138,7 +160,11 @@ def score_confirmed(records: list[dict], roster: dict = CONFIRMED_MODELS) -> dic
                     bucket["within_5_years"] += int(error <= 5)
                 else:
                     bucket["answered"] += int(bool(value) and value != "unknown")
-                    canonical = EMOTION_ALIASES.get(value, value) if feature == "emotion" else value
+                    canonical = (
+                        EMOTION_ALIASES.get(value, value)
+                        if feature == "emotion"
+                        else value
+                    )
                     bucket["correct"] += int(canonical in truth)
             if feature == "age":
                 bucket["mae_years"] = sum(errors) / len(errors) if errors else None
@@ -154,10 +180,15 @@ def run_confirmed(args) -> None:
     if args.image:
         labels = {args.image: labels[args.image]}
     models = inference.load_models()
-    detector_models = {"yolo": models.yolo_face_nets, "scrfd": models.scrfd_face_nets,
-                       "retinaface": models.retinaface_nets}
+    detector_models = {
+        "yolo": models.yolo_face_nets,
+        "scrfd": models.scrfd_face_nets,
+        "retinaface": models.retinaface_nets,
+    }
     if args.detector != "ssd" and args.detector not in detector_models[args.detector]:
-        raise ValueError(f"Requested detector {args.detector} is unavailable; refusing silent SSD fallback")
+        raise ValueError(
+            f"Requested detector {args.detector} is unavailable; refusing silent SSD fallback"
+        )
     records = []
     for name, truth in labels.items():
         path = args.assets / name
@@ -165,27 +196,41 @@ def run_confirmed(args) -> None:
         if frame is None:
             raise ValueError(f"Cannot read confirmed asset: {path}")
         _, faces, _, _ = inference.analyze_frame(
-            models, frame,
+            models,
+            frame,
             inference.AnalysisConfig(
-                conf_threshold=args.conf, active_age=set(models.age_nets),
+                conf_threshold=args.conf,
+                active_age=set(models.age_nets),
                 active_emotion=set(models.emotion_nets),
-                active_eye_color=set(models.eye_color_nets), face_detector=args.detector,
+                active_eye_color=set(models.eye_color_nets),
+                face_detector=args.detector,
             ),
         )
-        records.append({"image": name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-                        "truth": truth, "detections": len(faces),
-                        "box": list(faces[0]["box"]) if len(faces) == 1 else None,
-                        "outputs": faces[0]["model_results"] if len(faces) == 1 else []})
+        records.append(
+            {
+                "image": name,
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "truth": truth,
+                "detections": len(faces),
+                "box": list(faces[0]["box"]) if len(faces) == 1 else None,
+                "outputs": faces[0]["model_results"] if len(faces) == 1 else [],
+            }
+        )
         print(f"{name}: {len(faces)} detections", flush=True)
     report = {
         "annotation_sha256": hashlib.sha256(confirmed_path.read_bytes()).hexdigest(),
-        "inference_sha256": hashlib.sha256(Path(inference.__file__).read_bytes()).hexdigest(),
-        "detector": args.detector, "confidence": args.conf,
+        "inference_sha256": hashlib.sha256(
+            Path(inference.__file__).read_bytes()
+        ).hexdigest(),
+        "detector": args.detector,
+        "confidence": args.conf,
         "single_face_matches": sum(record["detections"] == 1 for record in records),
-        "images": len(records), "scores": score_confirmed(records), "records": records,
+        "images": len(records),
+        "scores": score_confirmed(records),
+        "records": records,
         "limitations": "Development set, not held out. Exact ages; missing outputs count as errors. "
-                       "Age MAE covers numeric answers only. Bucket containment is not exact accuracy. "
-                       "Race and gender are not inferred or evaluated.",
+        "Age MAE covers numeric answers only. Bucket containment is not exact accuracy. "
+        "Race and gender are not inferred or evaluated.",
     }
     print(json.dumps(report["scores"], indent=2))
     if args.output:
@@ -200,7 +245,9 @@ def parse_age(text: str) -> tuple[float, float] | None:
     bare "31", and DEX's "uncertain (mean 40, SD 12)" (scored on the mean, as displayed).
     """
     text = text.strip()
-    annotated = re.match(r"(\d+(?:\.\d+)?)\s*\(", text)  # consensus: "31 (2 models agree ...)"
+    annotated = re.match(
+        r"(\d+(?:\.\d+)?)\s*\(", text
+    )  # consensus: "31 (2 models agree ...)"
     if annotated:
         value = float(annotated.group(1))
         return (value, value)
@@ -259,13 +306,23 @@ def score_face(truth: dict, outputs: list[dict], tally: dict) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--detector", default="ssd", choices=inference.FACE_DETECTOR_OPTIONS)
+    parser.add_argument(
+        "--detector", default="ssd", choices=inference.FACE_DETECTOR_OPTIONS
+    )
     parser.add_argument("--conf", type=float, default=0.5)
-    parser.add_argument("--misses", action="store_true", help="print every wrong prediction")
+    parser.add_argument(
+        "--misses", action="store_true", help="print every wrong prediction"
+    )
     parser.add_argument("--image", default=None, help="restrict to one asset filename")
-    parser.add_argument("--confirmed", action="store_true", help="score exact labels from assets/confirmed.md")
+    parser.add_argument(
+        "--confirmed",
+        action="store_true",
+        help="score exact labels from assets/confirmed.md",
+    )
     parser.add_argument("--assets", type=Path, default=ROOT / "assets")
-    parser.add_argument("--output", type=Path, help="save confirmed evaluation and predictions as JSON")
+    parser.add_argument(
+        "--output", type=Path, help="save confirmed evaluation and predictions as JSON"
+    )
     args = parser.parse_args()
     if not 0 < args.conf <= 1:
         parser.error("--conf must be in (0, 1]")
@@ -279,7 +336,9 @@ def main() -> None:
     models = inference.load_models()
     every = lambda nets: set(nets)  # noqa: E731 -- run every loaded model of each feature
 
-    tally: dict = defaultdict(lambda: defaultdict(lambda: {"correct": 0, "total": 0, "misses": []}))
+    tally: dict = defaultdict(
+        lambda: defaultdict(lambda: {"correct": 0, "total": 0, "misses": []})
+    )
     detected_total = labelled_total = 0
 
     for name, faces in sorted(truth_data.items()):
@@ -291,11 +350,15 @@ def main() -> None:
             continue
         height, width = frame.shape[:2]
         _, cropped, _, _ = inference.analyze_frame(
-            models, frame,
+            models,
+            frame,
             inference.AnalysisConfig(
-                conf_threshold=args.conf, active_age=every(models.age_nets),
-                active_gender=every(models.gender_nets), active_emotion=every(models.emotion_nets),
-                active_race=every(models.race_nets), face_detector=args.detector,
+                conf_threshold=args.conf,
+                active_age=every(models.age_nets),
+                active_gender=every(models.gender_nets),
+                active_emotion=every(models.emotion_nets),
+                active_race=every(models.race_nets),
+                face_detector=args.detector,
             ),
         )
         labelled_total += len(faces)
@@ -313,18 +376,29 @@ def main() -> None:
                 continue
             matched.add(id(best))
             detected_total += 1
-            score_face({**truth, "_image": name, "_index": index}, best["model_results"], tally)
-        print(f"{name}: matched {len(matched)}/{len(faces)} labelled faces "
-              f"({len(cropped)} detections)")
+            score_face(
+                {**truth, "_image": name, "_index": index}, best["model_results"], tally
+            )
+        print(
+            f"{name}: matched {len(matched)}/{len(faces)} labelled faces "
+            f"({len(cropped)} detections)"
+        )
 
-    print(f"\nFACE DETECTION recall: {detected_total}/{labelled_total} "
-          f"= {100 * detected_total / max(1, labelled_total):.1f}%")
+    print(
+        f"\nFACE DETECTION recall: {detected_total}/{labelled_total} "
+        f"= {100 * detected_total / max(1, labelled_total):.1f}%"
+    )
     for feature in sorted(tally):
         print(f"\n{feature.upper()}")
-        rows = sorted(tally[feature].items(), key=lambda kv: -kv[1]["correct"] / max(1, kv[1]["total"]))
+        rows = sorted(
+            tally[feature].items(),
+            key=lambda kv: -kv[1]["correct"] / max(1, kv[1]["total"]),
+        )
         for model, bucket in rows:
             pct = 100 * bucket["correct"] / max(1, bucket["total"])
-            print(f"  {model:<16} {bucket['correct']:>3}/{bucket['total']:<3} = {pct:5.1f}%")
+            print(
+                f"  {model:<16} {bucket['correct']:>3}/{bucket['total']:<3} = {pct:5.1f}%"
+            )
             if args.misses:
                 for miss in bucket["misses"]:
                     print(f"      MISS {miss}")

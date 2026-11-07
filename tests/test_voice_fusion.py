@@ -28,7 +28,9 @@ class VoiceFusionTests(unittest.TestCase):
 
     def test_classify_voice_arousal_uses_quiet_and_loud_thresholds(self):
         """Verify RMS thresholds classify voice as QUIET, SPEAKING, or LOUD."""
-        self.assertEqual(classify_voice_arousal(AUDIO_AROUSAL_QUIET_RMS - 0.001), "QUIET")
+        self.assertEqual(
+            classify_voice_arousal(AUDIO_AROUSAL_QUIET_RMS - 0.001), "QUIET"
+        )
         self.assertEqual(classify_voice_arousal(AUDIO_AROUSAL_QUIET_RMS), "SPEAKING")
         self.assertEqual(classify_voice_arousal(AUDIO_AROUSAL_LOUD_RMS), "LOUD")
 

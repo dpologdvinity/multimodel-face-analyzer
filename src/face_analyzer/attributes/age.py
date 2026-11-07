@@ -1,4 +1,5 @@
 """Age prediction models, DEX expectation estimation, and preprocessing."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -23,16 +24,22 @@ def crop_face_dex(frame: np.ndarray, box: tuple[int, int, int, int]) -> np.ndarr
     pad_x, pad_y = round((x2 - x1) * 0.4), round((y2 - y1) * 0.4)
     left, top, right, bottom = x1 - pad_x, y1 - pad_y, x2 + pad_x, y2 + pad_y
     height, width = frame.shape[:2]
-    crop = frame[max(0, top):min(height, bottom), max(0, left):min(width, right)]
+    crop = frame[max(0, top) : min(height, bottom), max(0, left) : min(width, right)]
     return cv2.copyMakeBorder(
-        crop, max(0, -top), max(0, bottom - height),
-        max(0, -left), max(0, right - width), cv2.BORDER_REPLICATE,
+        crop,
+        max(0, -top),
+        max(0, bottom - height),
+        max(0, -left),
+        max(0, right - width),
+        cv2.BORDER_REPLICATE,
     )
 
 
 def dex_age_estimate(net: Any, face_bgr: np.ndarray) -> tuple[float, float] | None:
     """Decode DEX 101-class softmax over ages 0-100 into expected age and standard deviation."""
-    blob = cv2.dnn.blobFromImage(face_bgr, 1.0, (224, 224), DEX_MEAN_VALUES, swapRB=False, crop=False)
+    blob = cv2.dnn.blobFromImage(
+        face_bgr, 1.0, (224, 224), DEX_MEAN_VALUES, swapRB=False, crop=False
+    )
     with _lock_for(net):
         net.setInput(blob)
         probs = net.forward().flatten().astype(np.float64)

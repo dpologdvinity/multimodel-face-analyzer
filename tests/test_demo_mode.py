@@ -1,4 +1,5 @@
 """Demo mode (FACE_ANALYZER_DEMO=1) hides persistence and live mode, and bounds image sizes."""
+
 import json
 import threading
 import time
@@ -25,7 +26,12 @@ from face_analyzer.pipeline import cache
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = str(ROOT / "src" / "face_analyzer" / "app.py")
-PERSISTENCE_BUTTONS = {"Save face", "Search", "Scan all faces for recognition", "Enroll"}
+PERSISTENCE_BUTTONS = {
+    "Save face",
+    "Search",
+    "Scan all faces for recognition",
+    "Enroll",
+}
 
 
 def _forbidden(*_args, **_kwargs):
@@ -35,15 +41,21 @@ def _forbidden(*_args, **_kwargs):
 
 def _fake_models() -> Models:
     """Return models with a detector and, deliberately, a recognition backend the demo must not expose."""
-    return Models(retinaface_nets={"retinaface": object()}, age_nets={"fairface": object()},
-                  recognition_nets={"lbph": True})
+    return Models(
+        retinaface_nets={"retinaface": object()},
+        age_nets={"fairface": object()},
+        recognition_nets={"lbph": True},
+    )
 
 
 def _fake_analyze_frame(models, frame, config):
     """Return one face with an embedding, so every per-face action would normally render."""
     face = {
-        "idx": 1, "box": [10, 10, 60, 60], "image": np.full((50, 50, 3), 128, np.uint8),
-        "embedding": [0.5, 0.5, 0.5, 0.5], "raw_columns": {"age_fairface": "20-29"},
+        "idx": 1,
+        "box": [10, 10, 60, 60],
+        "image": np.full((50, 50, 3), 128, np.uint8),
+        "embedding": [0.5, 0.5, 0.5, 0.5],
+        "raw_columns": {"age_fairface": "20-29"},
         "model_results": [{"Feature": "AGE", "Model": "fairface", "Output": "20-29"}],
     }
     return frame.copy(), [face], True, False
@@ -58,8 +70,16 @@ def stubbed_app(monkeypatch):
     monkeypatch.setattr(inference, "load_models", _fake_models)
     monkeypatch.setattr(inference, "analyze_frame", _fake_analyze_frame)
     for module in (inference, database, search, eigenfaces):
-        for name in ("save_face", "save_gallery", "load_gallery", "enroll_lbph_face", "train_lbph_recognizer",
-                     "match_face_eigenfaces", "match_faces_eigenfaces_batch", "build_gallery_from_directory"):
+        for name in (
+            "save_face",
+            "save_gallery",
+            "load_gallery",
+            "enroll_lbph_face",
+            "train_lbph_recognizer",
+            "match_face_eigenfaces",
+            "match_faces_eigenfaces_batch",
+            "build_gallery_from_directory",
+        ):
             if hasattr(module, name):
                 monkeypatch.setattr(module, name, _forbidden)
     yield
@@ -71,7 +91,11 @@ def stubbed_app(monkeypatch):
 
 def _upload_one_face(at: AppTest, data: bytes | None = None) -> AppTest:
     """Upload a small PNG (or the given bytes, named face.png) through the image uploader and rerun."""
-    png = data if data is not None else cv2.imencode(".png", np.full((120, 120, 3), 200, np.uint8))[1].tobytes()
+    png = (
+        data
+        if data is not None
+        else cv2.imencode(".png", np.full((120, 120, 3), 200, np.uint8))[1].tobytes()
+    )
     at.file_uploader[0].set_value(("face.png", png, "image/png"))
     return at.run()
 
@@ -91,7 +115,9 @@ def test_demo_mode_hides_persistence_controls_and_live_mode(stubbed_app, monkeyp
     at = AppTest.from_file(APP, default_timeout=60).run()
     assert not at.exception and not at.error
     assert any("never stored" in info.value for info in at.info)
-    assert any("Live webcam mode runs locally only" in caption.value for caption in at.caption)
+    assert any(
+        "Live webcam mode runs locally only" in caption.value for caption in at.caption
+    )
     assert not at.get("button_group"), "the Snapshot/Live capture switch must be hidden"
     sidebar_text = " ".join(md.value for md in at.sidebar.markdown)
     assert "Gallery" not in sidebar_text and "Identity search" not in sidebar_text
@@ -101,9 +127,16 @@ def test_demo_mode_hides_persistence_controls_and_live_mode(stubbed_app, monkeyp
     assert not at.exception and not at.error
     assert _shows_results(at)
     assert not PERSISTENCE_BUTTONS & {button.label for button in at.button}
-    assert not [text for text in at.text_input if text.label in {"Enroll as", "Search directory (optional)"}]
+    assert not [
+        text
+        for text in at.text_input
+        if text.label in {"Enroll as", "Search directory (optional)"}
+    ]
     assert st.get_option("client.showErrorDetails") == "none"
-    assert any("FairFace (Kärkkäinen and Joo, CC BY 4.0)" in caption.value for caption in at.caption)
+    assert any(
+        "FairFace (Kärkkäinen and Joo, CC BY 4.0)" in caption.value
+        for caption in at.caption
+    )
 
 
 def test_full_mode_still_shows_persistence_controls(stubbed_app, monkeypatch):
@@ -120,17 +153,27 @@ def test_demo_manifest_entries_are_permissive_mirror_files_only():
     demo = demo_manifest_entries(entries, include_mediapipe=False)
     paths = {entry["path"] for entry in demo}
     assert {entry["source"] for entry in demo} == {"hf"}
-    assert {"retinaface_mobilenet0.25.onnx", "fairface_7class.onnx", "emotion_ferplus.onnx",
-            "haarcascade_eye.xml", "colorization_release_v2.caffemodel"} <= paths
+    assert {
+        "retinaface_mobilenet0.25.onnx",
+        "fairface_7class.onnx",
+        "emotion_ferplus.onnx",
+        "haarcascade_eye.xml",
+        "colorization_release_v2.caffemodel",
+    } <= paths
     assert "opencv_face_detector_uint8.pb" not in paths
     assert "face_landmarker.task" not in paths
-    assert "face_landmarker.task" in {e["path"] for e in demo_manifest_entries(entries, include_mediapipe=True)}
+    assert "face_landmarker.task" in {
+        e["path"] for e in demo_manifest_entries(entries, include_mediapipe=True)
+    }
 
 
 def test_decode_downscales_to_the_demo_side_and_rejects_oversized_headers():
     image = np.zeros((900, 3200, 3), np.uint8)
     encoded = cv2.imencode(".png", image)[1].tobytes()
-    assert max(inference.decode_image_bytes(encoded, DEMO_MAX_IMAGE_SIDE).shape[:2]) == DEMO_MAX_IMAGE_SIDE
+    assert (
+        max(inference.decode_image_bytes(encoded, DEMO_MAX_IMAGE_SIDE).shape[:2])
+        == DEMO_MAX_IMAGE_SIDE
+    )
     with pytest.raises(ValueError, match="too large"):
         inference.decode_image_bytes(encoded, DEMO_MAX_IMAGE_SIDE, max_pixels=1_000_000)
 
@@ -145,12 +188,16 @@ def test_demo_mode_rejects_a_renamed_hdr_before_decoding(stubbed_app, monkeypatc
 
 def test_pixel_cap_rejects_unreadable_and_non_photo_formats():
     with pytest.raises(ValueError):
-        inference.decode_image_bytes(_tiny_hdr(), DEMO_MAX_IMAGE_SIDE, DEMO_MAX_IMAGE_PIXELS)
+        inference.decode_image_bytes(
+            _tiny_hdr(), DEMO_MAX_IMAGE_SIDE, DEMO_MAX_IMAGE_PIXELS
+        )
     bmp = cv2.imencode(".bmp", np.zeros((8, 8, 3), np.uint8))[1].tobytes()
     with pytest.raises(ValueError, match="not a JPEG, PNG or WebP"):
         inference.decode_image_bytes(bmp, DEMO_MAX_IMAGE_SIDE, DEMO_MAX_IMAGE_PIXELS)
     with pytest.raises(ValueError):
-        inference.decode_image_bytes(b"not an image", DEMO_MAX_IMAGE_SIDE, DEMO_MAX_IMAGE_PIXELS)
+        inference.decode_image_bytes(
+            b"not an image", DEMO_MAX_IMAGE_SIDE, DEMO_MAX_IMAGE_PIXELS
+        )
     # Without a cap (full mode) cv2 still decodes whatever it supports.
     assert inference.decode_image_bytes(bmp).shape == (8, 8, 3)
 
@@ -193,15 +240,23 @@ def test_demo_upload_queues_behind_another_analysis(stubbed_app, monkeypatch):
     assert _shows_results(at)
 
 
-@pytest.mark.parametrize("writer", [
-    lambda: database.save_face(np.zeros((8, 8, 3), np.uint8), {}),
-    lambda: search.save_gallery({}),
-    lambda: search.enroll_lbph_face("someone", np.zeros((8, 8, 3), np.uint8)),
-])
+@pytest.mark.parametrize(
+    "writer",
+    [
+        lambda: database.save_face(np.zeros((8, 8, 3), np.uint8), {}),
+        lambda: search.save_gallery({}),
+        lambda: search.enroll_lbph_face("someone", np.zeros((8, 8, 3), np.uint8)),
+    ],
+)
 def test_face_writers_refuse_in_demo_mode(writer, monkeypatch, tmp_path):
     monkeypatch.setenv("FACE_ANALYZER_DEMO", "1")
-    for module, name in ((database, "FACES_DIR"), (database, "EIGEN_DIR"), (database, "FACES_DB_FILE"),
-                         (search, "GALLERY_FILE"), (search, "LBPH_GALLERY_DIR")):
+    for module, name in (
+        (database, "FACES_DIR"),
+        (database, "EIGEN_DIR"),
+        (database, "FACES_DB_FILE"),
+        (search, "GALLERY_FILE"),
+        (search, "LBPH_GALLERY_DIR"),
+    ):
         monkeypatch.setattr(module, name, tmp_path / name)
     with pytest.raises(PermissionError, match="demo mode"):
         writer()
@@ -214,11 +269,15 @@ def test_prediction_cache_is_skipped_in_demo_mode(monkeypatch):
     face = np.zeros((4, 4, 3), np.uint8)
     monkeypatch.setenv("FACE_ANALYZER_DEMO", "1")
     for _ in range(2):
-        cache._cached_face_predict("age", "demo-test", face, lambda: calls.append(1) or "x")
+        cache._cached_face_predict(
+            "age", "demo-test", face, lambda: calls.append(1) or "x"
+        )
     assert len(calls) == 2 and not cache._PREDICTION_CACHE
     monkeypatch.delenv("FACE_ANALYZER_DEMO")
     for _ in range(2):
-        cache._cached_face_predict("age", "demo-test", face, lambda: calls.append(1) or "x")
+        cache._cached_face_predict(
+            "age", "demo-test", face, lambda: calls.append(1) or "x"
+        )
     assert len(calls) == 3 and len(cache._PREDICTION_CACHE) == 1
 
 
@@ -246,7 +305,9 @@ def test_prediction_cache_survives_concurrent_eviction(monkeypatch):
     assert len(cache._PREDICTION_CACHE) <= 2
 
 
-def test_sample_photo_runs_without_an_upload_and_can_be_hidden(stubbed_app, monkeypatch):
+def test_sample_photo_runs_without_an_upload_and_can_be_hidden(
+    stubbed_app, monkeypatch
+):
     monkeypatch.setenv("FACE_ANALYZER_DEMO", "1")
     at = AppTest.from_file(APP, default_timeout=60).run()
     assert not _shows_results(at)

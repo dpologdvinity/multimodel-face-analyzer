@@ -1,4 +1,5 @@
 """SSD face detection backend using OpenCV DNN."""
+
 from __future__ import annotations
 
 import threading
@@ -24,7 +25,9 @@ def _lock_for(net: Any) -> Any:
     return lock
 
 
-def detect_faces_ssd(net: Any, frame: np.ndarray | None, conf_threshold: float = 0.5) -> list[list[int]]:
+def detect_faces_ssd(
+    net: Any, frame: np.ndarray | None, conf_threshold: float = 0.5
+) -> list[list[int]]:
     """Detect faces using OpenCV DNN SSD and return [x1, y1, x2, y2] bounding boxes."""
     if net is None or frame is None or getattr(frame, "size", 0) == 0:
         return []

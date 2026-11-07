@@ -8,6 +8,7 @@ identical, or the run stops.
 
     python build_crops.py --prep DIR --out DIR [--workers 4]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -32,8 +33,11 @@ SIZE = 224
 def crop_record(meta, i: int) -> dict:
     """Return sample i's crop record in the form faceprep.aligned_face takes."""
     angle = meta["angle"][i]
-    return {"box": meta["box"][i], "angle": None if np.isnan(angle) else float(angle),
-            "landmarks": meta["landmarks"][i]}
+    return {
+        "box": meta["box"][i],
+        "angle": None if np.isnan(angle) else float(angle),
+        "landmarks": meta["landmarks"][i],
+    }
 
 
 def _build_shard(task: tuple[int, str, str, str]) -> tuple[int, int, float]:
@@ -47,10 +51,18 @@ def _build_shard(task: tuple[int, str, str, str]) -> tuple[int, int, float]:
     started = time.time()
     meta = dict(np.load(prep_path))
     crops = np.load(out_path, mmap_mode="r+")
-    images = pq.read_table(parquet, columns=["image"]).column("image").combine_chunks().field("bytes")
+    images = (
+        pq.read_table(parquet, columns=["image"])
+        .column("image")
+        .combine_chunks()
+        .field("bytes")
+    )
     mine = np.flatnonzero((meta["shard"] == shard) & meta["detected"])
     for i in mine:
-        frame = cv2.imdecode(np.frombuffer(images[int(meta["row"][i])].as_py(), np.uint8), cv2.IMREAD_COLOR)
+        frame = cv2.imdecode(
+            np.frombuffer(images[int(meta["row"][i])].as_py(), np.uint8),
+            cv2.IMREAD_COLOR,
+        )
         crops[i] = faceprep.aligned_face(frame, crop_record(meta, int(i)))
     crops.flush()
     return shard, len(mine), time.time() - started
@@ -58,7 +70,9 @@ def _build_shard(task: tuple[int, str, str, str]) -> tuple[int, int, float]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n", 1)[0])
-    parser.add_argument("--prep", type=Path, required=True, help="prep kernel output directory")
+    parser.add_argument(
+        "--prep", type=Path, required=True, help="prep kernel output directory"
+    )
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--data", type=Path, default=Path("/tmp/age/fairface"))
     parser.add_argument("--workers", type=int, default=4)
@@ -72,13 +86,22 @@ def main() -> None:
     files = [str(f) for f in prep["files"]]
     if any("validation" in f or not f.startswith("1.25/train-") for f in files):
         raise SystemExit(f"refusing non-TRAIN inputs: {files}")
-    parquets = [hf_hub_download(REPO_ID, name, repo_type="dataset", revision=REVISION, local_dir=args.data)
-                for name in files]
+    parquets = [
+        hf_hub_download(
+            REPO_ID, name, repo_type="dataset", revision=REVISION, local_dir=args.data
+        )
+        for name in files
+    ]
     args.out.mkdir(parents=True, exist_ok=True)
     out_path = args.out / "crops_train.npy"
     total = len(prep["row"])
-    np.lib.format.open_memmap(out_path, mode="w+", dtype=np.uint8, shape=(total, SIZE, SIZE, 3)).flush()
-    tasks = [(shard, str(path), str(prep_path), str(out_path)) for shard, path in enumerate(parquets)]
+    np.lib.format.open_memmap(
+        out_path, mode="w+", dtype=np.uint8, shape=(total, SIZE, SIZE, 3)
+    ).flush()
+    tasks = [
+        (shard, str(path), str(prep_path), str(out_path))
+        for shard, path in enumerate(parquets)
+    ]
     with mp.get_context("fork").Pool(min(args.workers, len(tasks))) as pool:
         shards = pool.map(_build_shard, tasks)
     for shard, count, seconds in shards:
@@ -92,10 +115,16 @@ def main() -> None:
     import cv2
 
     summary = {
-        "file": out_path.name, "shape": list(crops.shape), "dtype": "uint8", "channel_order": "BGR",
-        "built": int(sum(count for _, count, _ in shards)), "reference_crops_identical": len(refs["index"]),
-        "minutes": round((time.time() - started) / 60, 1), "opencv": cv2.__version__,
-        "numpy": np.__version__, "python": sys.version.split()[0],
+        "file": out_path.name,
+        "shape": list(crops.shape),
+        "dtype": "uint8",
+        "channel_order": "BGR",
+        "built": int(sum(count for _, count, _ in shards)),
+        "reference_crops_identical": len(refs["index"]),
+        "minutes": round((time.time() - started) / 60, 1),
+        "opencv": cv2.__version__,
+        "numpy": np.__version__,
+        "python": sys.version.split()[0],
         "disk": shutil.disk_usage(args.out)._asdict(),
         "memory": subprocess.run(["free", "-m"], capture_output=True, text=True).stdout,
         "cpus": mp.cpu_count(),

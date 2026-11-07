@@ -1,4 +1,5 @@
 """Theme picker, theme tokens, and the app stylesheet."""
+
 from __future__ import annotations
 
 import functools
@@ -27,7 +28,11 @@ def resolve_theme(name: object) -> str:
     """Return a known theme name for name, falling back to the default theme."""
     if name in THEME_NAMES:
         return name
-    return _FORMER_THEME_NAMES.get(name, DEFAULT_THEME) if isinstance(name, str) else DEFAULT_THEME
+    return (
+        _FORMER_THEME_NAMES.get(name, DEFAULT_THEME)
+        if isinstance(name, str)
+        else DEFAULT_THEME
+    )
 
 
 def theme_label(name: str) -> str:
@@ -39,7 +44,9 @@ def select_theme() -> str:
     """Render the sidebar theme picker and return the selected theme name."""
     if "theme" in st.session_state:
         st.session_state["theme"] = resolve_theme(st.session_state["theme"])
-    return st.sidebar.selectbox("Theme", THEME_NAMES, format_func=theme_label, key="theme")
+    return st.sidebar.selectbox(
+        "Theme", THEME_NAMES, format_func=theme_label, key="theme"
+    )
 
 
 @functools.cache
@@ -55,7 +62,10 @@ def theme_tokens() -> dict[str, dict[str, str]]:
     for selector, body in _RULE.findall(_COMMENT.sub("", stylesheet())):
         parts = {part.strip() for part in selector.split(",")}
         for name, marker in THEME_MARKER_CLASSES.items():
-            if f"body:has(.{marker})" in parts and parts <= {":root", f"body:has(.{marker})"}:
+            if f"body:has(.{marker})" in parts and parts <= {
+                ":root",
+                f"body:has(.{marker})",
+            }:
                 tokens[name] = dict(_COLOR_TOKEN.findall(body))
     # Themes inherit any token they leave unset from the :root block (the default theme).
     return {name: {**tokens[DEFAULT_THEME], **tokens[name]} for name in THEME_NAMES}
@@ -63,14 +73,18 @@ def theme_tokens() -> dict[str, dict[str, str]]:
 
 def _bgr(hex_color: str) -> tuple[int, int, int]:
     """Convert #rrggbb to the BGR tuple OpenCV draws with."""
-    return tuple(int(hex_color[i:i + 2], 16) for i in (5, 3, 1))
+    return tuple(int(hex_color[i : i + 2], 16) for i in (5, 3, 1))
 
 
 def box_style(name: str) -> dict[str, tuple[int, int, int]]:
     """Return the AnalysisConfig face-box colours (BGR) for a theme's --box tokens."""
     tokens = theme_tokens()[resolve_theme(name)]
     box = _bgr(tokens["box"])
-    return {"box_color": box, "box_outline": _bgr(tokens["box-outline"]), "label_color": box}
+    return {
+        "box_color": box,
+        "box_outline": _bgr(tokens["box-outline"]),
+        "label_color": box,
+    }
 
 
 def theme_accent(name: str) -> str:

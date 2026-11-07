@@ -1,4 +1,5 @@
 """YOLOv8-Face detection backend using ONNX Runtime."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -24,7 +25,9 @@ def _yolo_letterbox(
     dw, dh = (target_size - new_w) / 2, (target_size - new_h) / 2
     top, bottom = int(dh), int(target_size - new_h - int(dh))
     left, right = int(dw), int(target_size - new_w - int(dw))
-    padded = cv2.copyMakeBorder(resized, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(114, 114, 114))
+    padded = cv2.copyMakeBorder(
+        resized, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(114, 114, 114)
+    )
     return padded, scale, (dw, dh)
 
 
@@ -34,7 +37,9 @@ def _yolo_softmax(x: np.ndarray, axis: int = -1) -> np.ndarray:
     return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
 
 
-def detect_faces_yolo(session: Any, frame: np.ndarray | None, conf_threshold: float = 0.5) -> list[list[int]]:
+def detect_faces_yolo(
+    session: Any, frame: np.ndarray | None, conf_threshold: float = 0.5
+) -> list[list[int]]:
     """Detect faces using YOLOv8-Face ONNX session and return [x1, y1, x2, y2] bounding boxes."""
     if session is None or frame is None or getattr(frame, "size", 0) == 0:
         return []
@@ -50,7 +55,9 @@ def detect_faces_yolo(session: Any, frame: np.ndarray | None, conf_threshold: fl
         _, channels, h, w = pred.shape
         pred = pred.reshape(1, channels, -1).transpose(0, 2, 1)[0]  # (H*W, 80)
 
-        grid_y, grid_x = np.meshgrid(np.arange(h) + 0.5, np.arange(w) + 0.5, indexing="ij")
+        grid_y, grid_x = np.meshgrid(
+            np.arange(h) + 0.5, np.arange(w) + 0.5, indexing="ij"
+        )
         grid_x, grid_y = grid_x.flatten(), grid_y.flatten()
 
         bbox_pred = pred[:, :64].reshape(-1, 4, 16)
@@ -75,7 +82,9 @@ def detect_faces_yolo(session: Any, frame: np.ndarray | None, conf_threshold: fl
         return []
 
     nms_boxes = [[x1, y1, x2 - x1, y2 - y1] for x1, y1, x2, y2 in boxes]
-    keep = cv2.dnn.NMSBoxes(nms_boxes, scores.tolist(), conf_threshold, YOLO_FACE_IOU_THRESHOLD)
+    keep = cv2.dnn.NMSBoxes(
+        nms_boxes, scores.tolist(), conf_threshold, YOLO_FACE_IOU_THRESHOLD
+    )
     if len(keep) == 0:
         return []
     boxes = boxes[np.array(keep).flatten()]

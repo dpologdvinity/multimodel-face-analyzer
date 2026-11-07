@@ -1,4 +1,5 @@
 """Readable sidebar labels for feature constants."""
+
 from face_analyzer.ui.sidebar import feature_label
 
 

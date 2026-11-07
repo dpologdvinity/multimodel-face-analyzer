@@ -1,4 +1,5 @@
 """Facade interface for facial analysis pipeline, models, attributes, detectors, and gallery."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -106,9 +107,11 @@ from .pipeline import (
 try:
     from .nets.deep3d_recon import mesh_to_obj_str
 except ImportError:
+
     def mesh_to_obj_str(*args: Any, **kwargs: Any) -> str:
         """Return an empty OBJ string when the deep3d module is unavailable."""
         return ""
+
 
 __all__ = [
     "AGE_LIST",

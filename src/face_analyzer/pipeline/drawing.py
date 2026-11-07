@@ -1,4 +1,5 @@
 """HUD overlays, landmark visualizations, and annotated rendering utilities."""
+
 from __future__ import annotations
 
 import contextlib
@@ -33,6 +34,7 @@ def _silence_native_logs():
         except OSError:
             pass
 
+
 try:
     # Imported only to probe availability; the import is noisy, hence the silencing.
     with _silence_native_logs():
@@ -51,7 +53,14 @@ def draw_face_landmarks(
     x1, y1, x2, y2 = box
     w, h = x2 - x1, y2 - y1
     for nx, ny in points_normalized:
-        cv2.circle(frame, (x1 + int(nx * w), y1 + int(ny * h)), 1, (255, 0, 255), thickness=-1, lineType=cv2.LINE_AA)
+        cv2.circle(
+            frame,
+            (x1 + int(nx * w), y1 + int(ny * h)),
+            1,
+            (255, 0, 255),
+            thickness=-1,
+            lineType=cv2.LINE_AA,
+        )
 
 
 def draw_hand_landmarks(frame: np.ndarray, hands: list[list[tuple[int, int]]]) -> None:
@@ -60,7 +69,9 @@ def draw_hand_landmarks(frame: np.ndarray, hands: list[list[tuple[int, int]]]) -
         for point_a, point_b in HAND_CONNECTIONS:
             cv2.line(frame, hand[point_a], hand[point_b], (0, 255, 0), 2, cv2.LINE_AA)
         for point in hand:
-            cv2.circle(frame, point, 4, (0, 255, 255), thickness=-1, lineType=cv2.FILLED)
+            cv2.circle(
+                frame, point, 4, (0, 255, 255), thickness=-1, lineType=cv2.FILLED
+            )
 
 
 def draw_outlined_text(
@@ -96,7 +107,12 @@ def draw_recognition_scan(
         color = (0, 255, 0) if recognized else (0, 0, 255)
         box_thickness = int(round(frame.shape[0] / 150)) or 1
         cv2.rectangle(frame, (x1, y1), (x2, y2), color, box_thickness, 8)
-        draw_outlined_text(frame, "Recognized" if recognized else "Unrecognized", (x1, max(20, y1 - 10)), color)
+        draw_outlined_text(
+            frame,
+            "Recognized" if recognized else "Unrecognized",
+            (x1, max(20, y1 - 10)),
+            color,
+        )
 
 
 __all__ = [

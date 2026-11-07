@@ -1,4 +1,5 @@
 """Per-face prediction memoization, the shared inference thread pool and latency metrics."""
+
 from __future__ import annotations
 
 import hashlib
@@ -25,7 +26,9 @@ _PREDICTION_CACHE_LOCK = threading.Lock()
 _MISSING = object()
 
 
-def _cached_face_predict(feature: str, model_key: str, face_bgr: np.ndarray, predict_fn: Any, *args: Any) -> Any:
+def _cached_face_predict(
+    feature: str, model_key: str, face_bgr: np.ndarray, predict_fn: Any, *args: Any
+) -> Any:
     """Memoize a predict_*(net, face, ...) call on (feature, model_key, hash(image bytes)).
 
     Demo mode skips the cache, so nothing derived from a visitor's image outlives the request.
@@ -51,13 +54,15 @@ def _cached_face_predict(feature: str, model_key: str, face_bgr: np.ndarray, pre
     return value
 
 
-def _record_model_latency(metrics: dict | None, feature: str, model: str, started: float) -> None:
+def _record_model_latency(
+    metrics: dict | None, feature: str, model: str, started: float
+) -> None:
     """Append per-model inference latency (ms) to metrics dict for performance monitoring."""
     if metrics is None:
         return
-    metrics.setdefault("model_latency_ms", {}).setdefault(f"{feature}/{model}", []).append(
-        (time.perf_counter() - started) * 1000
-    )
+    metrics.setdefault("model_latency_ms", {}).setdefault(
+        f"{feature}/{model}", []
+    ).append((time.perf_counter() - started) * 1000)
 
 
 __all__ = [

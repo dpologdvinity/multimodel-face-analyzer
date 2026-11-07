@@ -16,6 +16,7 @@ predict_stacked below is the pure-numpy inference an adopted model would ship wi
 run asserts it reproduces scikit-learn on every test face. `--fixture` writes a few of those
 faces for tests/test_fit_stacker.py. Method and results: docs/eval/heldout_fairface.md.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -108,41 +109,104 @@ def stacked_or_shipped(model: Mapping, raw: Mapping, attribute: str):
 
 def _canonical_groups(labels: list[str]) -> list[list[int]]:
     """Indices of a backend's classes that make up each canonical race, in canonical order."""
-    return [[i for i, label in enumerate(labels) if RACE_LABEL_TO_CANONICAL[label.lower()] == key]
-            for key in heldout.CANONICAL_RACES]
+    return [
+        [
+            i
+            for i, label in enumerate(labels)
+            if RACE_LABEL_TO_CANONICAL[label.lower()] == key
+        ]
+        for key in heldout.CANONICAL_RACES
+    ]
 
 
 def _continuous_age(source: str, index: int, name: str) -> list[dict]:
     """Age in years, its log1p and the FairFace bucket the app's displayed integer falls in."""
-    return ([{"name": f"{name}_age", "source": source, "op": "value", "index": index},
-             {"name": f"{name}_log1p_age", "source": source, "op": "log1p", "index": index}]
-            + [{"name": f"{name}_bucket_{k}", "source": source, "op": "bucket", "index": index,
-                "bucket": k} for k in range(N_AGE_BUCKETS)])
+    return [
+        {"name": f"{name}_age", "source": source, "op": "value", "index": index},
+        {"name": f"{name}_log1p_age", "source": source, "op": "log1p", "index": index},
+    ] + [
+        {
+            "name": f"{name}_bucket_{k}",
+            "source": source,
+            "op": "bucket",
+            "index": index,
+            "bucket": k,
+        }
+        for k in range(N_AGE_BUCKETS)
+    ]
 
 
 def feature_spec(attribute: str) -> list[dict]:
     """Every backend output available for the attribute, as JSON feature definitions."""
     if attribute == "gender":
         return [
-            {"name": "fairface_male_logit", "source": "gender_probs/fairface", "op": "logit", "indices": [0]},
-            {"name": "caffe_male_logit", "source": "gender_probs/caffe", "op": "logit", "indices": [0]},
-            {"name": "deepface_male_logit", "source": "gender_probs/deepface", "op": "logit", "indices": [1]},
-            {"name": "mivolo_is_male", "source": "mivolo/face", "op": "equals", "index": 1, "value": "Male"},
+            {
+                "name": "fairface_male_logit",
+                "source": "gender_probs/fairface",
+                "op": "logit",
+                "indices": [0],
+            },
+            {
+                "name": "caffe_male_logit",
+                "source": "gender_probs/caffe",
+                "op": "logit",
+                "indices": [0],
+            },
+            {
+                "name": "deepface_male_logit",
+                "source": "gender_probs/deepface",
+                "op": "logit",
+                "indices": [1],
+            },
+            {
+                "name": "mivolo_is_male",
+                "source": "mivolo/face",
+                "op": "equals",
+                "index": 1,
+                "value": "Male",
+            },
         ]
     if attribute == "race":
         spec = []
-        for backend, labels in (("fairface", RACE_LABELS_FAIRFACE), ("deepface", RACE_LABELS_DEEPFACE)):
-            for key, group in zip(heldout.CANONICAL_RACES, _canonical_groups(labels), strict=True):
-                spec.append({"name": f"{backend}_log_p_{key}", "source": f"race_probs/{backend}",
-                             "op": "log", "indices": group})
+        for backend, labels in (
+            ("fairface", RACE_LABELS_FAIRFACE),
+            ("deepface", RACE_LABELS_DEEPFACE),
+        ):
+            for key, group in zip(
+                heldout.CANONICAL_RACES, _canonical_groups(labels), strict=True
+            ):
+                spec.append(
+                    {
+                        "name": f"{backend}_log_p_{key}",
+                        "source": f"race_probs/{backend}",
+                        "op": "log",
+                        "indices": group,
+                    }
+                )
         return spec
     if attribute == "age":
-        spec = [{"name": f"fairface_log_p_{k}", "source": "age_probs/fairface", "op": "log",
-                 "indices": [k]} for k in range(N_AGE_BUCKETS)]
-        spec += [{"name": f"caffe_log_p_{k}", "source": "age_probs/caffe", "op": "log",
-                  "indices": [k]} for k in range(8)]
+        spec = [
+            {
+                "name": f"fairface_log_p_{k}",
+                "source": "age_probs/fairface",
+                "op": "log",
+                "indices": [k],
+            }
+            for k in range(N_AGE_BUCKETS)
+        ]
+        spec += [
+            {
+                "name": f"caffe_log_p_{k}",
+                "source": "age_probs/caffe",
+                "op": "log",
+                "indices": [k],
+            }
+            for k in range(8)
+        ]
         spec += _continuous_age("age_estimate/dex", 0, "dex")
-        spec.append({"name": "dex_sd", "source": "age_estimate/dex", "op": "value", "index": 1})
+        spec.append(
+            {"name": "dex_sd", "source": "age_estimate/dex", "op": "value", "index": 1}
+        )
         spec += _continuous_age("mivolo/face", 0, "mivolo")
         return spec
     raise ValueError(attribute)
@@ -177,17 +241,24 @@ def cross_validate(features: np.ndarray, y: np.ndarray, seed: int) -> dict:
     """Pick C by stratified 5-fold CV accuracy on the fit half (ties go to the smaller C)."""
     from sklearn.model_selection import StratifiedKFold
 
-    folds = list(StratifiedKFold(CV_FOLDS, shuffle=True, random_state=seed).split(features, y))
+    folds = list(
+        StratifiedKFold(CV_FOLDS, shuffle=True, random_state=seed).split(features, y)
+    )
     scores = {}
     for c in C_GRID:
         accuracies = []
         for train, valid in folds:
             model = _fit(features[train], y[train], c)
-            accuracies.append(float(np.mean(model.predict(features[valid]) == y[valid])))
+            accuracies.append(
+                float(np.mean(model.predict(features[valid]) == y[valid]))
+            )
         scores[c] = float(np.mean(accuracies))
     best = max(C_GRID, key=lambda c: (scores[c], -c))
-    return {"C": best, "cv_accuracy": round(scores[best], 4),
-            "grid": {f"{c:g}": round(score, 4) for c, score in scores.items()}}
+    return {
+        "C": best,
+        "cv_accuracy": round(scores[best], 4),
+        "grid": {f"{c:g}": round(score, 4) for c, score in scores.items()},
+    }
 
 
 def _fit(features: np.ndarray, y: np.ndarray, c: float):
@@ -196,17 +267,26 @@ def _fit(features: np.ndarray, y: np.ndarray, c: float):
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
 
-    return make_pipeline(StandardScaler(), LogisticRegression(C=c, max_iter=10000)).fit(features, y)
+    return make_pipeline(StandardScaler(), LogisticRegression(C=c, max_iter=10000)).fit(
+        features, y
+    )
 
 
 def export(model, attribute: str, spec: list[dict], cv: dict) -> dict:
     """The fitted pipeline as plain JSON: everything predict_stacked needs."""
     scaler, logistic = model[0], model[1]
     classes = [_plain(c) for c in logistic.classes_]
-    return {"attribute": attribute, "classes": classes, "features": spec,
-            "mean": scaler.mean_.tolist(), "scale": scaler.scale_.tolist(),
-            "coef": logistic.coef_.tolist(), "intercept": logistic.intercept_.tolist(),
-            "C": cv["C"], "cv_accuracy": cv["cv_accuracy"]}
+    return {
+        "attribute": attribute,
+        "classes": classes,
+        "features": spec,
+        "mean": scaler.mean_.tolist(),
+        "scale": scaler.scale_.tolist(),
+        "coef": logistic.coef_.tolist(),
+        "intercept": logistic.intercept_.tolist(),
+        "C": cv["C"],
+        "cv_accuracy": cv["cv_accuracy"],
+    }
 
 
 def _plain(value):
@@ -219,20 +299,26 @@ def _plain(value):
 
 def markdown_table(report: dict) -> str:
     """Render the test-half stacker results for docs/eval/heldout_fairface.md."""
+
     def diff(summary_: dict) -> str:
         low, high = summary_["ci95"]
-        return f"{100 * summary_['value']:+.1f} pp ({100 * low:+.1f} to {100 * high:+.1f})"
+        return (
+            f"{100 * summary_['value']:+.1f} pp ({100 * low:+.1f} to {100 * high:+.1f})"
+        )
 
-    lines = ["| Attribute | C | Fit-half CV | Stacked (test) | Shipped (test) | Stacked - shipped "
-             "| Stacked - best single | Adopted |",
-             "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+    lines = [
+        "| Attribute | C | Fit-half CV | Stacked (test) | Shipped (test) | Stacked - shipped "
+        "| Stacked - best single | Adopted |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    ]
     for attribute, entry in report["attributes"].items():
         r = entry["result"]
         lines.append(
             f"| {attribute} | {r['C']:g} | {100 * r['cv_accuracy']:.1f}% | "
             f"{heldout._pct(r['test_stacked'])} | {heldout._pct(r['test_shipped'])} | "
             f"{diff(r['stacked_minus_shipped'])} | {diff(r['stacked_minus_best_single'])} "
-            f"(`{r['best_single']}`) | {'yes' if r['adopted'] else 'no'} |")
+            f"(`{r['best_single']}`) | {'yes' if r['adopted'] else 'no'} |"
+        )
     return "\n".join(lines)
 
 
@@ -243,8 +329,12 @@ def main() -> None:
     parser.add_argument("--resamples", type=int, default=1000)
     parser.add_argument("--config", default="1.25")
     parser.add_argument("--output", type=Path, default=OUT_JSON)
-    parser.add_argument("--fixture", type=Path, default=None,
-                        help="also write a few test faces with scikit-learn's predictions, for tests")
+    parser.add_argument(
+        "--fixture",
+        type=Path,
+        default=None,
+        help="also write a few test faces with scikit-learn's predictions, for tests",
+    )
     args = parser.parse_args()
 
     data = heldout.DATA_DIR / args.config
@@ -252,20 +342,34 @@ def main() -> None:
     labels = heldout.load_labels(data / manifest["file"])
     rows = heldout.stratified_sample(labels["race"], args.n, args.seed)
     fit_rows, test_rows = heldout.stratified_split(rows, labels["race"], args.seed)
-    by_row = {r["row"]: r for r in heldout.read_cache(heldout.CACHE_DIR / args.config / "predictions.jsonl")}
+    by_row = {
+        r["row"]: r
+        for r in heldout.read_cache(
+            heldout.CACHE_DIR / args.config / "predictions.jsonl"
+        )
+    }
     fit = [by_row[row] for row in fit_rows if heldout._detected(by_row[row])]
     test = [by_row[row] for row in test_rows if heldout._detected(by_row[row])]
 
     def summary(values):
         return heldout.summarize(values, args.seed, args.resamples)
 
-    report: dict = {"method": {
-        "model": "L2 logistic regression on standardised features (scikit-learn, lbfgs)",
-        "C_grid": C_GRID, "cv": f"stratified {CV_FOLDS}-fold on the fit half, seed {args.seed}",
-        "fit_faces": len(fit), "test_faces": len(test), "date": date.today().isoformat(),
-        "adoption_rule": "ship only if the paired-bootstrap 95% CI lower bound of "
-                         "(stacked - shipped) on the test half is above 0"}, "attributes": {}}
-    fixture = [{"row": r["row"], "raw": {}, "expected": {}} for r in test[:FIXTURE_FACES]]
+    report: dict = {
+        "method": {
+            "model": "L2 logistic regression on standardised features (scikit-learn, lbfgs)",
+            "C_grid": C_GRID,
+            "cv": f"stratified {CV_FOLDS}-fold on the fit half, seed {args.seed}",
+            "fit_faces": len(fit),
+            "test_faces": len(test),
+            "date": date.today().isoformat(),
+            "adoption_rule": "ship only if the paired-bootstrap 95% CI lower bound of "
+            "(stacked - shipped) on the test half is above 0",
+        },
+        "attributes": {},
+    }
+    fixture = [
+        {"row": r["row"], "raw": {}, "expected": {}} for r in test[:FIXTURE_FACES]
+    ]
     for attribute in ("gender", "race", "age"):
         spec = feature_spec(attribute)
         complete = [r for r in fit if stacker_features(spec, r["raw"]) is not None]
@@ -277,16 +381,26 @@ def main() -> None:
 
         # The numpy inference on the exported JSON must reproduce scikit-learn on every face.
         test_x = [stacker_features(spec, r["raw"]) for r in test]
-        sk_labels = [None if f is None else _plain(model.predict(f[None])[0]) for f in test_x]
-        np_labels = [None if f is None else predict_stacked(exported, r["raw"])[0]
-                     for f, r in zip(test_x, test, strict=True)]
+        sk_labels = [
+            None if f is None else _plain(model.predict(f[None])[0]) for f in test_x
+        ]
+        np_labels = [
+            None if f is None else predict_stacked(exported, r["raw"])[0]
+            for f, r in zip(test_x, test, strict=True)
+        ]
         assert sk_labels == np_labels, "numpy stacker disagrees with scikit-learn"
         for entry, r, f in zip(fixture, test, test_x, strict=False):
-            if f is None:  # a missing backend: this face falls back, so it has no stacker answer
+            if (
+                f is None
+            ):  # a missing backend: this face falls back, so it has no stacker answer
                 continue
-            entry["raw"].update({feature["source"]: r["raw"][feature["source"]] for feature in spec})
-            entry["expected"][attribute] = {"label": _plain(model.predict(f[None])[0]),
-                                            "probs": model.predict_proba(f[None])[0].tolist()}
+            entry["raw"].update(
+                {feature["source"]: r["raw"][feature["source"]] for feature in spec}
+            )
+            entry["expected"][attribute] = {
+                "label": _plain(model.predict(f[None])[0]),
+                "probs": model.predict_proba(f[None])[0].tolist(),
+            }
 
         truth = [target(r, attribute) for r in test]
         shipped = [shipped_answer(r["raw"], attribute) for r in test]
@@ -295,30 +409,53 @@ def main() -> None:
         for r in fit:
             for key, value in single_answers(r["raw"], attribute).items():
                 fit_single.setdefault(key, []).append(value == target(r, attribute))
-        fit_single_accuracy = {key: round(float(np.mean(v)), 4) for key, v in fit_single.items()}
+        fit_single_accuracy = {
+            key: round(float(np.mean(v)), 4) for key, v in fit_single.items()
+        }
         best_key = max(fit_single_accuracy, key=fit_single_accuracy.get)
         single = [single_answers(r["raw"], attribute).get(best_key) for r in test]
 
-        correct = {name: np.array([p == t for p, t in zip(preds, truth, strict=True)], float)
-                   for name, preds in (("stacked", stacked), ("shipped", shipped), ("single", single))}
+        correct = {
+            name: np.array([p == t for p, t in zip(preds, truth, strict=True)], float)
+            for name, preds in (
+                ("stacked", stacked),
+                ("shipped", shipped),
+                ("single", single),
+            )
+        }
         # Ceiling for any rule that picks or combines these backends' top-1 answers.
-        any_right = [any(v == t for v in single_answers(r["raw"], attribute).values())
-                     for r, t in zip(test, truth, strict=True)]
+        any_right = [
+            any(v == t for v in single_answers(r["raw"], attribute).values())
+            for r, t in zip(test, truth, strict=True)
+        ]
         result = {
-            "fit_half_single_accuracy": fit_single_accuracy, "best_single": best_key,
-            "C": cv["C"], "cv_accuracy": cv["cv_accuracy"], "cv_grid": cv["grid"],
+            "fit_half_single_accuracy": fit_single_accuracy,
+            "best_single": best_key,
+            "C": cv["C"],
+            "cv_accuracy": cv["cv_accuracy"],
+            "cv_grid": cv["grid"],
             "fallback_faces": sum(v is None for v in np_labels),
             "test_stacked": summary(correct["stacked"]),
             "test_shipped": summary(correct["shipped"]),
             "test_best_single": summary(correct["single"]),
             "stacked_minus_shipped": summary(correct["stacked"] - correct["shipped"]),
-            "stacked_minus_best_single": summary(correct["stacked"] - correct["single"]),
+            "stacked_minus_best_single": summary(
+                correct["stacked"] - correct["single"]
+            ),
             "any_backend_right": summary(any_right),
         }
         if attribute == "age":
-            for name, preds in (("stacked", stacked), ("shipped", shipped), ("single", single)):
+            for name, preds in (
+                ("stacked", stacked),
+                ("shipped", shipped),
+                ("single", single),
+            ):
                 result[f"within_one_{name}"] = summary(
-                    [p is not None and abs(p - t) <= 1 for p, t in zip(preds, truth, strict=True)])
+                    [
+                        p is not None and abs(p - t) <= 1
+                        for p, t in zip(preds, truth, strict=True)
+                    ]
+                )
         result["adopted"] = result["stacked_minus_shipped"]["ci95"][0] > 0
         report["attributes"][attribute] = {"result": result, "model": exported}
 

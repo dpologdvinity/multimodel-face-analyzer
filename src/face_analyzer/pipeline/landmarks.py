@@ -1,4 +1,5 @@
 """MediaPipe landmarker inference calls for one face crop or one whole frame."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -22,7 +23,9 @@ def _detect_face_landmarker(landmarker: Any, face_bgr: np.ndarray) -> Any:
             return landmarker.detect(mp_image)
 
 
-def detect_hand_landmarks_mediapipe(landmarker: Any, frame_bgr: np.ndarray) -> list[list[tuple[int, int]]]:
+def detect_hand_landmarks_mediapipe(
+    landmarker: Any, frame_bgr: np.ndarray
+) -> list[list[tuple[int, int]]]:
     """MediaPipe HandLandmarker, whole-frame (hands aren't tied to a detected face box)."""
     frame_h, frame_w = frame_bgr.shape[:2]
     frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
@@ -40,13 +43,17 @@ def predict_face_landmarks_mediapipe(
     landmarker: Any, face_bgr: np.ndarray, result: Any = None
 ) -> list[tuple[float, float]] | None:
     """MediaPipe FaceLandmarker face-mesh points used by the landmark and gaze features."""
-    result = result if result is not None else _detect_face_landmarker(landmarker, face_bgr)
+    result = (
+        result if result is not None else _detect_face_landmarker(landmarker, face_bgr)
+    )
     if not result.face_landmarks:
         return None
     return [(lm.x, lm.y) for lm in result.face_landmarks[0]]
 
 
-def predict_gaze_mediapipe(landmarker: Any, face_bgr: np.ndarray, result: Any = None) -> str:
+def predict_gaze_mediapipe(
+    landmarker: Any, face_bgr: np.ndarray, result: Any = None
+) -> str:
     """Estimate coarse gaze direction from MediaPipe iris and eye landmarks."""
     points = predict_face_landmarks_mediapipe(landmarker, face_bgr, result)
     if points is None or len(points) < 478:
@@ -67,18 +74,30 @@ def predict_gaze_mediapipe(landmarker: Any, face_bgr: np.ndarray, result: Any = 
         if eye_width < 1e-6 or eye_height < 1e-6:
             continue
         horizontal = (iris_center[0] - min(left_corner[0], right_corner[0])) / eye_width
-        vertical_position = (iris_center[1] - min(points[index][1] for index in vertical)) / eye_height
+        vertical_position = (
+            iris_center[1] - min(points[index][1] for index in vertical)
+        ) / eye_height
         directions.append((horizontal, vertical_position))
 
     if not directions:
         return "unknown"
     horizontal, vertical_position = np.mean(directions, axis=0)
-    horizontal_label = "left" if horizontal < 0.38 else "right" if horizontal > 0.62 else "center"
-    vertical_label = "up" if vertical_position < 0.35 else "down" if vertical_position > 0.65 else "level"
+    horizontal_label = (
+        "left" if horizontal < 0.38 else "right" if horizontal > 0.62 else "center"
+    )
+    vertical_label = (
+        "up"
+        if vertical_position < 0.35
+        else "down"
+        if vertical_position > 0.65
+        else "level"
+    )
     return f"{horizontal_label}/{vertical_label}"
 
 
-def predict_head_pose_mediapipe(landmarker: Any, face_bgr: np.ndarray, result: Any = None) -> str:
+def predict_head_pose_mediapipe(
+    landmarker: Any, face_bgr: np.ndarray, result: Any = None
+) -> str:
     """Estimate coarse yaw/pitch from stable MediaPipe face landmarks."""
     points = predict_face_landmarks_mediapipe(landmarker, face_bgr, result)
     if points is None or len(points) < 264:
@@ -87,13 +106,27 @@ def predict_head_pose_mediapipe(landmarker: Any, face_bgr: np.ndarray, result: A
     h, w = face_bgr.shape[:2]
     image_points[:, 0] *= w
     image_points[:, 1] *= h
-    model_points = np.float32([
-        (0.0, 0.0, 0.0), (0.0, -63.6, -12.5), (-43.3, 32.7, -26.0),
-        (43.3, 32.7, -26.0), (-28.9, -28.9, -24.1), (28.9, -28.9, -24.1),
-    ])
+    model_points = np.float32(
+        [
+            (0.0, 0.0, 0.0),
+            (0.0, -63.6, -12.5),
+            (-43.3, 32.7, -26.0),
+            (43.3, 32.7, -26.0),
+            (-28.9, -28.9, -24.1),
+            (28.9, -28.9, -24.1),
+        ]
+    )
     focal = float(w)
-    camera = np.array([[focal, 0, w / 2], [0, focal, h / 2], [0, 0, 1]], dtype=np.float32)
-    ok, rotation, _ = cv2.solvePnP(model_points, image_points, camera, np.zeros((4, 1)), flags=cv2.SOLVEPNP_ITERATIVE)
+    camera = np.array(
+        [[focal, 0, w / 2], [0, focal, h / 2], [0, 0, 1]], dtype=np.float32
+    )
+    ok, rotation, _ = cv2.solvePnP(
+        model_points,
+        image_points,
+        camera,
+        np.zeros((4, 1)),
+        flags=cv2.SOLVEPNP_ITERATIVE,
+    )
     if not ok:
         return "unknown"
     matrix, _ = cv2.Rodrigues(rotation)

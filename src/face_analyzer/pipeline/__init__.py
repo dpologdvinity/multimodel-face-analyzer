@@ -1,4 +1,5 @@
 """Pipeline orchestration subpackage for facial analysis workflow and visualization."""
+
 from __future__ import annotations
 
 from .analyzer import AGGREGATE_FEATURES, aggregate_demographics, analyze_frame

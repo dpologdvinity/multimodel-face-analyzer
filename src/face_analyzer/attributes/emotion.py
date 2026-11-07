@@ -1,4 +1,5 @@
 """Emotion classification models and multimodal voice-face arousal fusion."""
+
 from __future__ import annotations
 
 import threading
@@ -43,7 +44,9 @@ def predict_emotion_dan(net: Any, face_bgr: np.ndarray) -> str:
 
 def predict_emotion_mini_xception(net: Any, face_bgr: np.ndarray) -> str:
     """Classify facial expression using Mini-Xception model."""
-    face_gray = cv2.cvtColor(cv2.resize(face_bgr, (64, 64)), cv2.COLOR_BGR2GRAY).astype(np.float32)
+    face_gray = cv2.cvtColor(cv2.resize(face_bgr, (64, 64)), cv2.COLOR_BGR2GRAY).astype(
+        np.float32
+    )
     face_norm = (face_gray / 255.0 - 0.5) * 2.0
     tensor = face_norm[np.newaxis, ..., np.newaxis]
     with _lock_for(net):
@@ -53,7 +56,9 @@ def predict_emotion_mini_xception(net: Any, face_bgr: np.ndarray) -> str:
 
 def predict_emotion_ferplus(net: Any, face_bgr: np.ndarray) -> str:
     """Classify facial expression using FERPlus ONNX model."""
-    face_gray = cv2.cvtColor(cv2.resize(face_bgr, (64, 64)), cv2.COLOR_BGR2GRAY).astype(np.float32)
+    face_gray = cv2.cvtColor(cv2.resize(face_bgr, (64, 64)), cv2.COLOR_BGR2GRAY).astype(
+        np.float32
+    )
     blob = face_gray[np.newaxis, np.newaxis, ...]
     with _lock_for(net):
         net.setInput(blob)
@@ -64,7 +69,9 @@ def predict_emotion_ferplus(net: Any, face_bgr: np.ndarray) -> str:
 def predict_emotion_hsemotion(net: Any, face_bgr: np.ndarray) -> str:
     """Classify facial expression using HSEmotion ONNX model."""
     face_rgb = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2RGB)
-    blob = cv2.dnn.blobFromImage(face_rgb, 1.0 / 255.0, (224, 224), (0, 0, 0), swapRB=False, crop=False)
+    blob = cv2.dnn.blobFromImage(
+        face_rgb, 1.0 / 255.0, (224, 224), (0, 0, 0), swapRB=False, crop=False
+    )
     blob = (blob - IMAGENET_MEAN.reshape(1, 3, 1, 1)) / IMAGENET_STD.reshape(1, 3, 1, 1)
     with _lock_for(net):
         net.setInput(blob.astype(np.float32))
@@ -132,7 +139,9 @@ class VoiceFaceFusion:
             self._sample_rate = sample_rate
             self._samples.append(samples)
             self._buffered_seconds += samples.size / sample_rate
-            while self._buffered_seconds > self._window_seconds and len(self._samples) > 1:
+            while (
+                self._buffered_seconds > self._window_seconds and len(self._samples) > 1
+            ):
                 oldest = self._samples.pop(0)
                 self._buffered_seconds -= oldest.size / self._sample_rate
 

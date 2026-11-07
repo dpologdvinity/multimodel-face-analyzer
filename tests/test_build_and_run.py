@@ -96,7 +96,7 @@ class BuildPromptFormattingTests(unittest.TestCase):
             docker = fake_bin / "docker"
             docker.write_text(
                 "#!/bin/sh\n"
-                "if [ \"$1\" = build ]; then printf '%s\\n' \"$@\" > \"$DOCKER_BUILD_ARGS\"; fi\n"
+                'if [ "$1" = build ]; then printf \'%s\\n\' "$@" > "$DOCKER_BUILD_ARGS"; fi\n'
                 "exit 0\n"
             )
             docker.chmod(0o755)
@@ -107,7 +107,8 @@ class BuildPromptFormattingTests(unittest.TestCase):
             result = subprocess.run(
                 ["bash", str(SCRIPT)],
                 cwd=SCRIPT.parent,
-                input="\n".join(["0", "1", "1", "0", "0", "0", "0", "0", "n", "q"]) + "\n",
+                input="\n".join(["0", "1", "1", "0", "0", "0", "0", "0", "n", "q"])
+                + "\n",
                 text=True,
                 capture_output=True,
                 env=env,
@@ -121,7 +122,11 @@ class BuildPromptFormattingTests(unittest.TestCase):
             self.assertIn("GENDER_MODEL=fairface", args)
             self.assertIn("EMOTION_MODEL=", args)
             dockerfile = (SCRIPT.parent / "Dockerfile").read_text()
-            declared = {line.split()[1].split("=")[0] for line in dockerfile.splitlines() if line.startswith("ARG ")}
+            declared = {
+                line.split()[1].split("=")[0]
+                for line in dockerfile.splitlines()
+                if line.startswith("ARG ")
+            }
             forwarded = {arg.split("=")[0] for arg in args if "=" in arg}
             self.assertEqual(declared, forwarded)
 
@@ -130,10 +135,18 @@ class DockerfileFetchTests(unittest.TestCase):
     def test_fetch_step_passes_every_model_arg(self):
         """The Dockerfile's fetch_models.py RUN line must forward all 16 model build args."""
         dockerfile = (SCRIPT.parent / "Dockerfile").read_text()
-        declared = {line.split()[1].split("=")[0] for line in dockerfile.splitlines() if line.startswith("ARG ")}
+        declared = {
+            line.split()[1].split("=")[0]
+            for line in dockerfile.splitlines()
+            if line.startswith("ARG ")
+        }
         self.assertEqual(len(declared), 16)
         joined = dockerfile.replace("\\\n", " ")
-        fetch_lines = [line for line in joined.splitlines() if line.startswith("RUN python tools/fetch_models.py --keys")]
+        fetch_lines = [
+            line
+            for line in joined.splitlines()
+            if line.startswith("RUN python tools/fetch_models.py --keys")
+        ]
         self.assertEqual(len(fetch_lines), 1)
         passed = set(re.findall(r'"([A-Z0-9_]+)=\$([A-Z0-9_]+)"', fetch_lines[0]))
         self.assertEqual(passed, {(arg, arg) for arg in declared})
@@ -144,12 +157,19 @@ class DockerIgnoreTests(unittest.TestCase):
         """.dockerignore and .gitignore must let through only the manifest's in-git files."""
         root = SCRIPT.parent
         manifest = json.loads((root / "models" / "manifest.json").read_text())
-        expected = {"manifest.json"} | {entry["path"] for entry in manifest["files"] if entry["in_git"]}
-        for name, prefix in ((".dockerignore", "!models/"), (".gitignore", "!/models/")):
+        expected = {"manifest.json"} | {
+            entry["path"] for entry in manifest["files"] if entry["in_git"]
+        }
+        for name, prefix in (
+            (".dockerignore", "!models/"),
+            (".gitignore", "!/models/"),
+        ):
             with self.subTest(name=name):
                 lines = (root / name).read_text().splitlines()
                 admitted = {
-                    line[len(prefix):] for line in lines if line.startswith(prefix) and not line.endswith(("/", "BFM"))
+                    line[len(prefix) :]
+                    for line in lines
+                    if line.startswith(prefix) and not line.endswith(("/", "BFM"))
                 }
                 self.assertEqual(admitted, expected)
 

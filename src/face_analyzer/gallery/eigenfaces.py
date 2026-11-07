@@ -1,4 +1,5 @@
 """Eigenfaces PCA training and projection for face matching."""
+
 from __future__ import annotations
 
 import cv2
@@ -18,7 +19,9 @@ def _crop_and_resize_for_eigenfaces(face_bgr: np.ndarray) -> np.ndarray:
     h, w = gray.shape[:2]
     side = min(h, w)
     cy, cx = h // 2, w // 2
-    zoomed = gray[max(0, cy - side // 2):cy + side // 2, max(0, cx - side // 2):cx + side // 2]
+    zoomed = gray[
+        max(0, cy - side // 2) : cy + side // 2, max(0, cx - side // 2) : cx + side // 2
+    ]
     return cv2.resize(zoomed, EIGEN_FACE_SIZE)
 
 
@@ -45,7 +48,9 @@ def _load_eigen_images() -> tuple[list[int], np.ndarray]:
     return ids, (np.array(vectors) if vectors else np.empty((0, dim)))
 
 
-def _train_eigenfaces(k: int = 15) -> tuple[list[int], np.ndarray, np.ndarray, np.ndarray] | None:
+def _train_eigenfaces(
+    k: int = 15,
+) -> tuple[list[int], np.ndarray, np.ndarray, np.ndarray] | None:
     """Train PCA-based face subspace from saved eigenfaces (faces ever clicked SAVE on)."""
     ids, data = _load_eigen_images()
     if len(ids) < 2:
@@ -76,15 +81,24 @@ def _match_against_trained(
     weights: np.ndarray,
 ) -> tuple[int, float] | None:
     """Project a query face into eigenspace and find the closest training sample (L2 distance)."""
-    query = _crop_and_resize_for_eigenfaces(face_bgr).flatten().astype(np.float64) - mean_face
+    query = (
+        _crop_and_resize_for_eigenfaces(face_bgr).flatten().astype(np.float64)
+        - mean_face
+    )
     query_weights = query @ eigenfaces
     distances = np.linalg.norm(weights - query_weights, axis=1)
     best_idx = int(np.argmin(distances))
     best_dist = float(distances[best_idx])
-    return (ids[best_idx], best_dist) if best_dist <= EIGENFACE_DISTANCE_THRESHOLD else None
+    return (
+        (ids[best_idx], best_dist)
+        if best_dist <= EIGENFACE_DISTANCE_THRESHOLD
+        else None
+    )
 
 
-def match_face_eigenfaces(face_bgr: np.ndarray, k: int = 15) -> tuple[int, float] | None:
+def match_face_eigenfaces(
+    face_bgr: np.ndarray, k: int = 15
+) -> tuple[int, float] | None:
     """Match one face against eigen/ via fresh PCA training."""
     trained = _train_eigenfaces(k)
     if trained is None:
@@ -93,10 +107,15 @@ def match_face_eigenfaces(face_bgr: np.ndarray, k: int = 15) -> tuple[int, float
     return _match_against_trained(face_bgr, ids, mean_face, eigenfaces, weights)
 
 
-def match_faces_eigenfaces_batch(faces_bgr: list[np.ndarray], k: int = 15) -> list[tuple[int, float] | None]:
+def match_faces_eigenfaces_batch(
+    faces_bgr: list[np.ndarray], k: int = 15
+) -> list[tuple[int, float] | None]:
     """Match several faces from the same image against eigen/ in one PCA training pass."""
     trained = _train_eigenfaces(k)
     if trained is None:
         return [None] * len(faces_bgr)
     ids, mean_face, eigenfaces, weights = trained
-    return [_match_against_trained(face_bgr, ids, mean_face, eigenfaces, weights) for face_bgr in faces_bgr]
+    return [
+        _match_against_trained(face_bgr, ids, mean_face, eigenfaces, weights)
+        for face_bgr in faces_bgr
+    ]

@@ -1,4 +1,5 @@
 """load_models() must treat unpulled git-lfs pointer files as missing models, not crash."""
+
 from pathlib import Path
 
 from face_analyzer.core.constants import FACE_MODEL, FACE_PROTO, MODEL_DIR

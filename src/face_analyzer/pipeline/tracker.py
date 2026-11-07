@@ -1,4 +1,5 @@
 """Multi-face tracking using greedy IoU matching across video frames."""
+
 from __future__ import annotations
 
 import threading
@@ -7,7 +8,9 @@ from dataclasses import dataclass
 from ..core.constants import IOU_TRACKING_THRESHOLD, TRACKING_MAX_MISSED_FRAMES
 
 
-def _box_iou(box_a: tuple[int, int, int, int], box_b: tuple[int, int, int, int]) -> float:
+def _box_iou(
+    box_a: tuple[int, int, int, int], box_b: tuple[int, int, int, int]
+) -> float:
     """Standard intersection-over-union for two (x1, y1, x2, y2) boxes."""
     ax1, ay1, ax2, ay2 = box_a
     bx1, by1, bx2, by2 = box_b

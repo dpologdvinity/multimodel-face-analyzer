@@ -1,4 +1,5 @@
 """Image adjustment sliders shared by the batch-wide and per-face result views."""
+
 from __future__ import annotations
 
 import streamlit as st
@@ -24,9 +25,15 @@ def adjustment_sliders(caption: str, key_prefix: str, column_count: int = 2) -> 
         reset_adjustments((key_prefix,))
     values = {}
     columns = st.columns(column_count)
-    for index, (adj_key, (adj_min, adj_max, adj_default)) in enumerate(inference.IMAGE_ADJUSTMENT_RANGES.items()):
+    for index, (adj_key, (adj_min, adj_max, adj_default)) in enumerate(
+        inference.IMAGE_ADJUSTMENT_RANGES.items()
+    ):
         with columns[index % column_count]:
             values[adj_key] = st.slider(
-                adj_key.replace("_", " ").title(), adj_min, adj_max, adj_default, key=f"{key_prefix}_{adj_key}"
+                adj_key.replace("_", " ").title(),
+                adj_min,
+                adj_max,
+                adj_default,
+                key=f"{key_prefix}_{adj_key}",
             )
     return values

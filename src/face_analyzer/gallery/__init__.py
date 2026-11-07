@@ -1,4 +1,5 @@
 """Face database persistence, eigenfaces matching, and identity search subpackage."""
+
 from __future__ import annotations
 
 from .database import save_face

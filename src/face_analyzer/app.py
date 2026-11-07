@@ -60,7 +60,9 @@ def decode_image_bytes(file_bytes: bytes):
     stored, so it decodes afresh on every run instead of caching decoded frames.
     """
     if demo:
-        return inference.decode_image_bytes(file_bytes, DEMO_MAX_IMAGE_SIDE, DEMO_MAX_IMAGE_PIXELS)
+        return inference.decode_image_bytes(
+            file_bytes, DEMO_MAX_IMAGE_SIDE, DEMO_MAX_IMAGE_PIXELS
+        )
     return _decode_image_bytes(file_bytes)
 
 
@@ -72,9 +74,9 @@ except Exception as e:
 
 st.markdown(
     '<div class="app-bar"><div><h1>Multimodel Face Analyzer</h1>'
-    '<p>Every face, read back: one card per face, each answer credited to the model that gave it.</p></div>'
+    "<p>Every face, read back: one card per face, each answer credited to the model that gave it.</p></div>"
     f'<span class="app-bar-chip"><b>{models.loaded_feature_count}</b> of '
-    f'{models.total_feature_count} analyses ready</span></div>',
+    f"{models.total_feature_count} analyses ready</span></div>",
     unsafe_allow_html=True,
 )
 
@@ -109,24 +111,38 @@ with tab_upload:
     else:
         showing = st.session_state.get("show_sample", False)
         with st.container(horizontal=True, horizontal_alignment="center"):
-            if st.button("Hide the sample photo" if showing else "No photo? Try a sample",
-                         icon=":material/photo_library:", key="sample_photo_btn"):
+            if st.button(
+                "Hide the sample photo" if showing else "No photo? Try a sample",
+                icon=":material/photo_library:",
+                key="sample_photo_btn",
+            ):
                 st.session_state["show_sample"] = not showing
                 st.rerun()
         if showing:
-            st.markdown(f'<p class="wrap-note">{SAMPLE_PHOTO_CREDIT}</p>', unsafe_allow_html=True)
+            st.markdown(
+                f'<p class="wrap-note">{SAMPLE_PHOTO_CREDIT}</p>',
+                unsafe_allow_html=True,
+            )
             process_and_display(
-                models, sidebar, decode_image_bytes(SAMPLE_PHOTO.read_bytes()), SAMPLE_PHOTO_NAME,
-                theme=theme, face_adjustments=face_adjustments,
+                models,
+                sidebar,
+                decode_image_bytes(SAMPLE_PHOTO.read_bytes()),
+                SAMPLE_PHOTO_NAME,
+                theme=theme,
+                face_adjustments=face_adjustments,
             )
 
     if uploaded_files:
         if demo and len(uploaded_files) > DEMO_MAX_FILES:
-            st.warning(f"The demo analyzes the first {DEMO_MAX_FILES} images of each upload.")
+            st.warning(
+                f"The demo analyzes the first {DEMO_MAX_FILES} images of each upload."
+            )
             uploaded_files = uploaded_files[:DEMO_MAX_FILES]
         for uploaded_file in uploaded_files:
             if demo and uploaded_file.size > DEMO_MAX_UPLOAD_MB * 1024 * 1024:
-                st.error(f"{uploaded_file.name} is larger than the demo's {DEMO_MAX_UPLOAD_MB} MB limit.")
+                st.error(
+                    f"{uploaded_file.name} is larger than the demo's {DEMO_MAX_UPLOAD_MB} MB limit."
+                )
                 continue
             try:
                 frame = decode_image_bytes(uploaded_file.read())
@@ -134,8 +150,12 @@ with tab_upload:
                 st.error(f"Could not read {uploaded_file.name}: {exc}")
                 continue
             process_and_display(
-                models, sidebar, frame, uploaded_file.name,
-                theme=theme, face_adjustments=face_adjustments,
+                models,
+                sidebar,
+                frame,
+                uploaded_file.name,
+                theme=theme,
+                face_adjustments=face_adjustments,
             )
 
 with tab_webcam:
@@ -143,7 +163,9 @@ with tab_webcam:
         st.caption(LIVE_MODE_NOTE)
         capture_mode = "Snapshot"
     else:
-        capture_mode = st.segmented_control("Capture mode", ["Snapshot", "Live"], default="Snapshot")
+        capture_mode = st.segmented_control(
+            "Capture mode", ["Snapshot", "Live"], default="Snapshot"
+        )
 
     if capture_mode == "Snapshot":
         webcam_image = st.camera_input("Take a snapshot")
@@ -156,13 +178,21 @@ with tab_webcam:
                 frame = None
             if frame is not None:
                 process_and_display(
-                    models, sidebar, frame, "WEBCAM_CAPTURE",
-                    theme=theme, face_adjustments=face_adjustments,
+                    models,
+                    sidebar,
+                    frame,
+                    "WEBCAM_CAPTURE",
+                    theme=theme,
+                    face_adjustments=face_adjustments,
                 )
     else:
         render_live_tab(
-            models, sidebar, live_session,
-            global_adjustments=global_adjustments, face_adjustments=face_adjustments, theme=theme,
+            models,
+            sidebar,
+            live_session,
+            global_adjustments=global_adjustments,
+            face_adjustments=face_adjustments,
+            theme=theme,
         )
 
 if demo:
