@@ -140,11 +140,12 @@ No git-lfs needed. The model weights (about 2.9 GB for every downloadable model)
 demand by `tools/fetch_models.py`, which downloads only the models you select and checks each
 file's sha256 against [models/manifest.json](models/manifest.json). Permissively licensed
 weights come from the project's Hugging Face mirror; the rest come from their original upstream
-source, and two (`dan` emotion and `deep3d` 3D reconstruction) are bring-your-own. See
+source, and three (`dan` emotion, `deep3d` 3D reconstruction and `mobilenet` glasses) are
+bring-your-own. See
 [docs/setup.md](docs/setup.md#model-weights) and [MODEL_LICENSES.md](MODEL_LICENSES.md).
 
 **Upgrading an existing clone?** Pulling this change deletes the git-lfs weights from disk, including
-the bring-your-own `dan` and `deep3d` files that cannot be downloaded again. Run
+the bring-your-own `dan`, `deep3d` and glasses files that cannot be downloaded again. Run
 `cp -al models models.bak` before `git pull`; see
 [docs/setup.md](docs/setup.md#upgrading-a-clone-that-has-the-git-lfs-weights).
 
@@ -191,7 +192,7 @@ answers are `fairface`'s alone: on the same held-out test faces, gender 92.2% (9
 | Gaze and head pose | `mediapipe` | Coarse direction, eye contact, yaw and pitch |
 | Liveness | `mediapipe` + texture heuristic | Blink and replay cues; a screening signal only |
 | Recognition | `vggface`, `lbph` | Against a gallery you enroll yourself |
-| Glasses | `mobilenet` | |
+| Glasses | `mobilenet` | Bring-your-own: the upstream repository was deleted |
 | Mask | `mobilenetv2` | |
 | Eye color | `colorimetric` | Heuristic, not a trained model |
 | Face landmarks | `mediapipe` | 468-point mesh |
@@ -201,9 +202,10 @@ answers are `fairface`'s alone: on the same held-out test faces, gender 92.2% (9
 | 3D reconstruction | `deep3d` | **No working default weights**: needs the registration-gated Basel Face Model |
 
 The 15 rows after face detection are the analysis features in the `Models` container
-(`src/face_analyzer/core/types.py`). Fourteen work with weights `tools/fetch_models.py` downloads; 3D
+(`src/face_analyzer/core/types.py`). Thirteen work with weights `tools/fetch_models.py` downloads; 3D
 reconstruction is wired but stays unavailable until you supply its checkpoint and the Basel Face
-Model file yourself. The `dan` emotion backend is bring-your-own as well.
+Model file yourself. Glasses detection is bring-your-own too (its upstream repository was
+deleted), as is the `dan` emotion backend.
 
 The app also has tools that need no extra model: identity search against your own reference
 photos, SAVE to a local SQLite database with eigenfaces matching, a scan that labels every face

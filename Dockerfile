@@ -43,7 +43,8 @@ FROM python:3.11-slim
 # BFM landmark template) but ships NO working weights -- Deep3DFaceRecon_pytorch's checkpoint
 # and the Basel Face Model data it needs are both gated (Google Drive / university license
 # registration respectively); this ARG alone will never produce a working reconstruction.
-# EMOTION_MODEL=dan is likewise bring-your-own (its checkpoint is only on Google Drive).
+# EMOTION_MODEL=dan is likewise bring-your-own (its checkpoint is only on Google Drive), and so
+# is GLASSES_MODEL=mobilenet (its upstream repository was deleted).
 # tools/fetch_models.py prints where to get each such file; see docs/setup.md.
 # AGE_PROGRESSION_MODEL (franunet, timroelofs123/face_reaging) needs torch. Its BlurPool
 # component is vendored directly into src/face_analyzer/nets/face_reaging_model.py from Adobe's
@@ -174,7 +175,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Only the files tracked in git reach the build context (see .dockerignore): the manifest and
 # the small permissively licensed configs. The required SSD detector and the selected weights
 # are downloaded here from the sources in models/manifest.json and checked against its sha256s,
-# so no local weights are needed to build. Bring-your-own models (dan, deep3d) only print where
+# so no local weights are needed to build. Bring-your-own models (dan, deep3d, glasses) only print where
 # to get the file; the app then lists their features as unavailable, and you can mount the file
 # into /app/models/ at runtime instead.
 COPY models/ models/

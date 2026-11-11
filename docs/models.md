@@ -221,7 +221,9 @@ permissions and a working WebRTC connection are required.
 | ----------- | -------------- | -------------------- |
 | `mobilenet` | ONNX (onnxruntime) | `glasses` / `none`  |
 
-Sorour190/Glasses-Detector, `models/glasses_detector.onnx` (MobileNetV3-Large, 224x224 RGB, normalization baked into the ONNX graph itself -- feed raw uint8 pixels). **The source repo has no license file**; see [MODEL_LICENSES.md](../MODEL_LICENSES.md).
+Sorour190/Glasses-Detector, `models/glasses_detector.onnx` (MobileNetV3-Large, 224x224 RGB, normalization baked into the ONNX graph itself -- feed raw uint8 pixels). **The source repo had no license file and has since been deleted**, so the file is
+bring-your-own: `tools/fetch_models.py` prints what to do when `mobilenet` is selected. See
+[MODEL_LICENSES.md](../MODEL_LICENSES.md).
 
 ## Mask
 
