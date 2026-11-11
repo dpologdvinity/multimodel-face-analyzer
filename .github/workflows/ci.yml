@@ -29,5 +29,6 @@ jobs:
             requirements-dev.txt
       - run: pip install -r requirements-dev.txt
       - run: ruff check .
+      - run: ruff format --check .
       - run: python tools/fetch_models.py --keys
       - run: python -m pytest -q
