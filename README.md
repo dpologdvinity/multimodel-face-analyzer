@@ -73,7 +73,16 @@ in `nets/`; `inference.py` is a facade that re-exports the public names the UI, 
 tests use. The Streamlit entry point `app.py` only wires these together: the theme
 (`ui/theme.py` plus `theme.css`), the sidebar (`ui/sidebar.py`), the image adjustment sliders
 (`ui/adjustments.py`), the per-image results view (`ui/results.py`), and the Live webcam tab
-(`ui/live.py`).
+(`ui/live.py`). [ARCHITECTURE.md](ARCHITECTURE.md) covers module boundaries, the weights
+lifecycle and demo mode in more depth.
+
+## Development
+
+[CONTRIBUTING.md](CONTRIBUTING.md) covers local setup, the lint and test commands CI runs, and
+commit conventions. The repo is also set up for coding agents: [AGENTS.md](AGENTS.md) is the
+single instruction file (`CLAUDE.md` imports it), with project skills in `.agents/skills/`, a
+Docker-testing subagent for Claude Code and Codex, Playwright MCP config in `.mcp.json`, and
+the design specs and implementation plans behind past changes in [docs/agents/](docs/agents/).
 
 ## Results
 
