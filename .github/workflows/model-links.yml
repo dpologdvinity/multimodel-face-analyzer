@@ -1,0 +1,31 @@
+name: Model links
+
+# Upstream model files live in third-party repos that can disappear (a deleted repo breaks every
+# Docker build that selects the model). Probe each manifest URL with a one-byte range request:
+# weekly, on demand, and whenever a pull request changes the manifest.
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - models/manifest.json
+      - tests/test_manifest_urls.py
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      # The check needs only pytest; tools/fetch_models.py is stdlib-only.
+      - run: pip install "$(grep '^pytest==' requirements-dev.txt)"
+      - run: python -m pytest -q tests/test_manifest_urls.py
+        env:
+          FACE_ANALYZER_NETWORK_TESTS: "1"

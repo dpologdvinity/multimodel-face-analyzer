@@ -37,6 +37,8 @@ python -m pytest -q
 ```
 
 Tests that need optional weights or local photos skip when the files are missing.
+`FACE_ANALYZER_NETWORK_TESTS=1 python -m pytest tests/test_manifest_urls.py` checks that every
+model download URL still answers (a scheduled workflow runs it weekly).
 `tests/test_pipeline_golden.py` pins the pipeline's output: a refactor must keep it green
 without touching `tests/fixtures/golden_analysis.json`. Regenerate it
 (`UPDATE_GOLDEN=1 python -m pytest tests/test_pipeline_golden.py`) only for an intended

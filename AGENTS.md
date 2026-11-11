@@ -94,7 +94,7 @@ None are required and the app reads no secrets.
   `_present()` (an old LFS pointer counts as absent), never a bare `.exists()`.
 - Never check out an old branch that still tracks the weights in git-lfs in the main checkout
   (use a worktree): switching back deletes the ignored local copies, including the
-  bring-your-own `dan`/`deep3d` files that can't be downloaded again.
+  bring-your-own `dan`/`deep3d`/glasses files that can't be downloaded again.
 - Model lists are ordered most-accurate-first. A new model, fusion or stacker ships only if its
   paired confidence interval against the shipped answer is above zero.
 - **Evaluation** uses its own Python 3.11 venv, `.venv-eval`; never install eval packages into

@@ -36,10 +36,12 @@ Each manifest entry has one of three sources, decided by its license
   project's own GitHub release, raw file, Hugging Face repo, or website. SCRFD comes out of
   InsightFace's `buffalo_m.zip` release asset (`det_2.5g.onnx`), so selecting it downloads the
   276 MB archive to extract a 3 MB file.
-- `manual`: no direct download exists (Google Drive or a registration form). The script prints
+- `manual`: no direct download exists (Google Drive, a registration form, or a deleted upstream).
+  The script prints
   where to get the file and where to put it, and the feature stays listed as unavailable until
   you do. These are `dan_affecnet7.pth` (`dan` emotion), `deep3d_recon_resnet50.pth` and
-  `BFM/BFM_model_front.mat` (`deep3d` 3D reconstruction). A self-supplied file whose hash differs
+  `BFM/BFM_model_front.mat` (`deep3d` 3D reconstruction), and `glasses_detector.onnx`
+  (`mobilenet` glasses, whose upstream repository was deleted). A self-supplied file whose hash differs
   from the one this repo was tested with only triggers a warning.
 
 A few small, permissively licensed files stay in git: `opencv_face_detector.pbtxt`,
@@ -66,7 +68,9 @@ file like a missing model.
    `tests/test_fetch_models.py` fails on any URL left on the old revision.
 3. Add the manifest entry (size, sha256, license, the build-arg keys in `models`), give every
    new model path in `src/face_analyzer/core/constants.py` an entry (a test checks), and add the
-   row to [MODEL_LICENSES.md](../MODEL_LICENSES.md).
+   row to [MODEL_LICENSES.md](../MODEL_LICENSES.md). Check the new URL with
+   `FACE_ANALYZER_NETWORK_TESTS=1 python -m pytest tests/test_manifest_urls.py` (the Model links
+   workflow also runs it on pull requests that change the manifest, and weekly).
 4. A small permissive file may stay in git (`"in_git": true`); mirror its exception in both
    `.gitignore` and `.dockerignore` (a test checks they match).
 
@@ -322,7 +326,7 @@ The build downloads only the selected weights, with `tools/fetch_models.py` and 
 as its `--keys`, so disabled models never land in an image layer and no local weights are needed.
 `.dockerignore` keeps any weights you have in `models/` out of the build context, which stays a few
 MB. A failed download or a sha256 mismatch fails the build. Selecting a bring-your-own model
-(`dan`, `deep3d`) does not: the build prints where to get the file, the app lists the feature as
+(`dan`, `deep3d`, glasses `mobilenet`) does not: the build prints where to get the file, the app lists the feature as
 unavailable, and you can mount the file in at run time, for example
 `-v "$PWD/models/dan_affecnet7.pth:/app/models/dan_affecnet7.pth:ro"`.
 

@@ -427,10 +427,10 @@
       },
       "required": false,
       "license": "Not stated upstream (no LICENSE file)",
-      "source": "upstream",
-      "url": "https://raw.githubusercontent.com/Sorour190/Glasses-Detector/bb91b228d73a5ba3489789a8b2b2b6c8c45f9643/models/glasses_face224.onnx",
+      "source": "manual",
       "upstream": "https://github.com/Sorour190/Glasses-Detector",
-      "in_git": false
+      "in_git": false,
+      "instructions": "The upstream repository (github.com/Sorour190/Glasses-Detector) has been deleted and never stated a license, so there is no download. If you kept its models/glasses_face224.onnx (commit bb91b228d73a5ba3489789a8b2b2b6c8c45f9643), save it as {dest}."
     },
     {
       "path": "mask_detector.h5",
