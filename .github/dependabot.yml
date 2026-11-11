@@ -37,3 +37,9 @@ updates:
     groups:
       docker-minor-patch:
         update-types: ["minor", "patch"]
+    ignore:
+      # The base image's Python is a deliberate pin (3.11, matched by CI and the dev container),
+      # and the optional torch/tensorflow/onnxruntime pins must have wheels for it. Docker tags
+      # make 3.11 -> 3.x look like a minor bump, so move it by hand together with those pins.
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
