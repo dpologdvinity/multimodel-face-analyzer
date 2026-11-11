@@ -41,6 +41,7 @@ import numpy as np
 
 from face_analyzer.core.constants import (
     AGE_LIST_RANGES,
+    BASE_DIR,
     FAIRFACE_AGE_RANGES,
     MODEL_DIR,
     RACE_CANONICAL_LABELS,
@@ -521,6 +522,18 @@ def _instrument(sink: dict) -> None:
     stages.fairface_landmarks_from_detector = recording_detector_landmarks
 
 
+def _portable_path(path: Path) -> str:
+    """Return path relative to the repo, else with a ~ home prefix, so committed JSON stays portable."""
+    path = Path(path).resolve()
+    for root, name in ((BASE_DIR.resolve(), "."), (Path.home().resolve(), "~")):
+        if path == root:
+            return name
+        if root in path.parents:
+            rel = path.relative_to(root).as_posix()
+            return rel if name == "." else f"~/{rel}"
+    return path.as_posix()
+
+
 def _versions() -> dict[str, str | None]:
     """Installed versions of the packages that determine the numbers."""
     from importlib import metadata
@@ -638,7 +651,7 @@ def run_inference(
         "conf_threshold": conf,
         "mediapipe_landmarks": bool(models.face_landmarks_nets),
         "demo_mode": is_demo_mode(),
-        "model_dir": str(MODEL_DIR),
+        "model_dir": _portable_path(MODEL_DIR),
         "versions": _versions(),
         "date": date.today().isoformat(),
     }

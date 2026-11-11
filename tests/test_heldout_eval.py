@@ -423,6 +423,24 @@ class ExtraAgeTests(unittest.TestCase):
         self.assertEqual(report["cache_vs_display_mismatches"]["best_age"], 0)
 
 
+class PortablePathTests(unittest.TestCase):
+    """Paths recorded in the committed eval JSON must not leak the machine's home directory."""
+
+    def test_path_inside_the_repo_is_repo_relative(self):
+        self.assertEqual(
+            eval_heldout._portable_path(eval_heldout.BASE_DIR / "models"), "models"
+        )
+
+    def test_path_under_home_uses_a_tilde(self):
+        path = Path.home() / "weights" / "models"
+        self.assertEqual(eval_heldout._portable_path(path), "~/weights/models")
+
+    def test_other_absolute_path_is_kept(self):
+        self.assertEqual(
+            eval_heldout._portable_path(Path("/opt/models")), "/opt/models"
+        )
+
+
 class ParquetReached(Exception):
     """Raised by the stubbed parquet read: run_inference got past its detector and MediaPipe guards."""
 
