@@ -1,0 +1,3 @@
+
+[plugins."python-skills@claude-settings"]
+enabled = true
