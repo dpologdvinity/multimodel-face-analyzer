@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM python:3.11-slim
+FROM python:3.15-slim
 
 # Per-feature model selection. Each ARG takes a comma-separated list of model
 # keys for that feature, or an empty string for "none". Options are listed
