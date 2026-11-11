@@ -55,6 +55,21 @@ public demo uses RetinaFace only; see [deploy.md](deploy.md)).
 Older checkouts stored the weights in git-lfs. The loader still treats an unpulled LFS pointer
 file like a missing model.
 
+### Adding or changing a model file
+
+1. Pick the `source` from the license: permissive goes to `hf`, restricted or unclear to
+   `upstream` (pin the URL to a release, tag or commit), no direct download to `manual`.
+2. For `hf`, upload the file unchanged to the mirror and add its attribution and license notice
+   to the mirror's model card. The upload creates a new mirror commit: set the manifest's
+   `hf_revision` to it and re-pin **every** `hf` URL to that hash
+   (`https://huggingface.co/<hf_repo>/resolve/<hf_revision>/<path>`);
+   `tests/test_fetch_models.py` fails on any URL left on the old revision.
+3. Add the manifest entry (size, sha256, license, the build-arg keys in `models`), give every
+   new model path in `src/face_analyzer/core/constants.py` an entry (a test checks), and add the
+   row to [MODEL_LICENSES.md](../MODEL_LICENSES.md).
+4. A small permissive file may stay in git (`"in_git": true`); mirror its exception in both
+   `.gitignore` and `.dockerignore` (a test checks they match).
+
 ### Upgrading a clone that has the git-lfs weights
 
 **Back up `models/` before you pull this change.** Git deletes files from disk when a pull stops
