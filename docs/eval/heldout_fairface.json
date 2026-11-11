@@ -46,7 +46,7 @@
     "excluded": [],
     "detector": "ssd",
     "conf_threshold": 0.5,
-    "model_dir": "/home/kaitlyn/git/multimodal-face-analyzer/models",
+    "model_dir": "models",
     "versions": {
       "python": "3.11.17",
       "numpy": "2.4.6",
