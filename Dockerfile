@@ -112,7 +112,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # onnxruntime too for consistency with the other non-cv2.dnn detector. All four use onnxruntime.
 RUN --mount=type=cache,target=/root/.cache/pip \
     yolo_face_csv=",$YOLO_FACE_MODEL,"; glasses_csv=",$GLASSES_MODEL,"; scrfd_face_csv=",$SCRFD_FACE_MODEL,"; retinaface_csv=",$RETINAFACE_MODEL,"; \
-    case "$yolo_face_csv:$glasses_csv:$scrfd_face_csv:$retinaface_csv" in *yolo*|*mobilenet*|*scrfd*|*retinaface*) pip install onnxruntime==1.30.0 ;; esac
+    case "$yolo_face_csv:$glasses_csv:$scrfd_face_csv:$retinaface_csv" in *yolo*|*mobilenet*|*scrfd*|*retinaface*) pip install onnxruntime==1.31.1 ;; esac
 
 # tensorflow/tf-keras are only needed for the deepface race, deepface gender,
 # and/or mini_xception emotion models
