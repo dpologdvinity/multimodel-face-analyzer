@@ -1,61 +1,77 @@
 # AGENTS.md
 
-Instructions for coding agents (Codex, Claude Code, and any tool that reads `AGENTS.md`) working
-in this repository. `CLAUDE.md` is a one-line `@AGENTS.md` import, so this file is the single
-source of truth. Keep it, [README.md](README.md) and [ARCHITECTURE.md](ARCHITECTURE.md) current
-whenever a change affects what they describe.
+Instructions for coding agents in this repo; `CLAUDE.md` imports this file.
 
-The repo is a Streamlit face analyzer: multi-backend face detection plus age, gender, race,
-emotion and other per-face attributes, packaged as `face_analyzer` (src layout). Product context
-for UI work is in [PRODUCT.md](PRODUCT.md) and the design system in [DESIGN.md](DESIGN.md).
+Multimodel Face Analyzer is a Streamlit app: multi-backend face detection plus age, gender, race,
+emotion and other per-face attributes, packaged as `face_analyzer` (src layout). Module layout:
+[ARCHITECTURE.md](ARCHITECTURE.md). For UI work: [PRODUCT.md](PRODUCT.md) (audience, goals) and
+[DESIGN.md](DESIGN.md) (design system).
+
+## Before you finish
+
+Run what applies and report each result; say so if you skipped a check.
+
+- [ ] `ruff check .`, `ruff format --check .` and `python -m pytest -q` pass (CI runs all three on
+  Python 3.11 and 3.12).
+- [ ] `tests/fixtures/golden_analysis.json` is unchanged. Regenerate it
+  (`UPDATE_GOLDEN=1 python -m pytest tests/test_pipeline_golden.py`) only for an intended behavior
+  change, and say why; never hand-edit it or regenerate it to make a refactor pass.
+- [ ] UI change: look at it in a browser (Playwright MCP) in the Night and Day themes, and with
+  `FACE_ANALYZER_DEMO=1` if demo mode can reach it.
+- [ ] `Dockerfile`, `requirements*.txt`, `models/manifest.json` or `tools/fetch_models.py`
+  changed: verify with the `docker-tester` subagent.
+- [ ] Model or preprocessing changed: re-run `tools/benchmark.py` (needs the local `assets/`
+  photos) and update [docs/benchmark.md](docs/benchmark.md).
+- [ ] Docs that describe what you changed (README, ARCHITECTURE, this file, `docs/`) are updated.
+
+## How to work
+
+Branch from `master` as `<type>/<topic>` (e.g. `fix/center-edit`) and open a pull request into
+`master`; it merges once CI is green. Pick the project skill that fits:
+
+| Task | Skill |
+| --- | --- |
+| Failure with an unknown or intermittent cause | `investigate-first`, then fix |
+| Bug or small behavior change | `surgical-patch` (failing test first) |
+| New feature or integration | `lean-build` |
+| Restructure without behavior change | `safe-refactor` (the golden test is the guard) |
+| Validation only, or proving work is done | `verify-and-stop` |
+
+A new feature, user-visible redesign, new model backend or cross-module refactor starts with a
+spec in `docs/agents/specs/` (what and why), then a plan in `docs/agents/plans/` (small test-first
+tasks with exact files, commands and commits), both `YYYY-MM-DD-<topic>.md`; see
+[past examples](docs/agents/README.md). Bug fixes and docs don't need one.
 
 ## Ground rules
 
-- Avoid Docker builds unless a change can't be verified otherwise; stop processes/containers
-  you start and delete scratch files when done.
-- **No tool attribution in commits:** commit messages carry no `Co-Authored-By` or other
-  trailers and don't mention the assistant that wrote them. Keep product code and user-facing
-  docs free of tool mentions; agent tooling belongs in the agent files listed below.
 - **Conventional commits** (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `ci:`),
-  short imperative subject, body only when the "why" isn't obvious. Commit after every
-  meaningful change; stage files explicitly (never `git add -A`).
-- **Worktrees go in `.worktrees/<name>`**, never inside `.claude/`. Worktrees share the main
-  checkout's `.venv`; never `pip install -e` a worktree into it (it would repoint the package).
-- **Docstrings and comments:** PEP 257 one-line imperative docstrings; `#` comments only to
-  explain WHY. Skip vendored code in `src/face_analyzer/nets/` (also excluded from ruff).
-- **Never pretend a feature works** when its model file is absent or known-bad. Features whose
-  only known weights are broken, gated or unlicensed ship wired-up code with no default weights;
-  `Models.offline_features` surfaces this in the sidebar.
+  short imperative subject, body only when the "why" isn't obvious. Commit after every meaningful
+  change; stage files explicitly (never `git add -A`).
+- **No tool attribution:** no `Co-Authored-By` or other trailers, and no mention of the assistant
+  in commits, product code or user-facing docs.
+- **Worktrees go in `.worktrees/<name>`**, never inside `.claude/`. They share the main `.venv`;
+  never `pip install -e` a worktree into it (it would repoint the package).
+- Avoid Docker builds unless a change can't be verified otherwise; stop processes and containers
+  you start and delete scratch files.
+- PEP 257 one-line imperative docstrings; `#` comments only explain WHY. Skip vendored
+  `src/face_analyzer/nets/` (also excluded from ruff).
+- **Never pretend a feature works** when its model file is absent or known-bad: ship the wired-up
+  code without default weights and let `Models.offline_features` say so in the sidebar.
 
 ## Commands
 
 ```bash
-pip install -r requirements-dev.txt        # pinned runtime deps + pytest + ruff + `-e .`
-ruff check .                               # lint (ruff version pinned in requirements-dev.txt)
-ruff format --check .                      # formatting (CI and the pre-commit hook enforce it)
-python -m pytest -q                        # tests; CI runs this on Python 3.11 and 3.12
+pip install -r requirements-dev.txt        # pinned deps + pytest + ruff + editable `-e .`
 lefthook install                           # pre-commit: gitleaks, ruff check/format, typos
-streamlit run src/face_analyzer/app.py     # app (native; needs the editable install)
-streamlit run streamlit_app.py             # public demo: forces demo mode, fetches demo weights once
+python tools/fetch_models.py --keys        # required detector only; --list, --all, or ARG=key pairs
+streamlit run src/face_analyzer/app.py     # app
+streamlit run streamlit_app.py             # public demo (demo mode, fetches demo weights once)
 ./install-and-run.sh                       # guided native install of optional heavy deps
 ./build-and-run.sh                         # guided Docker build + run (port 8501)
 ```
 
-- Weights are not in git: `python tools/fetch_models.py --keys AGE_MODEL=fairface ...` (or `--all`,
-  `--list`) downloads them per `models/manifest.json` (size, sha256, license, build-arg keys,
-  `source` hf/upstream/manual). Stdlib only.
-- pytest needs no install (`pythonpath = ["src"]` in `pyproject.toml`). Tests needing model
-  weights or local photos skip via `tests/_models.py` (`require_model`, `require_local_data`)
-  when the file is missing (or an old git-lfs pointer). Point loading at real weights elsewhere
-  with `FACE_ANALYZER_MODEL_DIR=/path/to/models`.
-- **`tests/test_pipeline_golden.py` is the behavior safety net.** Never hand-edit
-  `tests/fixtures/golden_analysis.json` or regenerate it during a refactor; only run
-  `UPDATE_GOLDEN=1 python -m pytest tests/test_pipeline_golden.py` for an intended behavior change.
-- The package is installed editable everywhere (`requirements-dev.txt` ends with `-e .`; the
-  Dockerfile and `install-and-run.sh` run `pip install --no-deps -e .`) so `BASE_DIR` stays the
-  repo root.
-- Per-feature model lists are ordered most-accurate-first; re-run `tools/benchmark.py` after
-  changing any model or its preprocessing.
+Tests that need weights or local photos skip via `tests/_models.py`; point them at real weights
+with `FACE_ANALYZER_MODEL_DIR=/path/to/models`.
 
 ## Environment variables
 
@@ -63,81 +79,64 @@ None are required and the app reads no secrets.
 
 | Variable | Effect |
 | --- | --- |
-| `FACE_ANALYZER_MODEL_DIR` | Load and fetch weights from this directory instead of `models/`. |
-| `FACE_ANALYZER_DEMO` | Truthy value turns on demo mode (see below). |
+| `FACE_ANALYZER_MODEL_DIR` | Load and fetch weights here instead of `models/`. |
+| `FACE_ANALYZER_DEMO` | Truthy value turns on demo mode. |
 | `FACE_ANALYZER_ORT_THREADS` | onnxruntime thread count. |
-| `AGE_MODEL`, `GENDER_MODEL`, `EMOTION_MODEL`, `RACE_MODEL`, ... | Same names as the Docker build ARGs. A comma-separated list restricts which backends the native app loads (empty = none); unset loads whatever is present. Set by `install-and-run.sh`. |
-
-## Evaluation and experiments
-
-- **Held-out eval (FairFace)** runs in its own Python 3.11 venv `.venv-eval` (gitignored; install
-  steps in [docs/setup.md](docs/setup.md)). Never install into `.venv`, and keep scikit-learn
-  (for `tools/fit_stacker.py`) there too. `.venv-eval/bin/python tools/fetch_fairface.py`
-  (default 1.25 padding; 0.25 crops break SSD), then
-  `FACE_ANALYZER_MODEL_DIR=$PWD/models .venv-eval/bin/python tools/eval_heldout.py --n 2000`
-  (~2.5 h on 2 cores, resumable; `--score-only` re-scores `data/eval_cache/` without models;
-  `--extra-age KEY=model.onnx` scores a non-app age model on the same crops). Writes
-  `docs/eval/heldout_fairface.json`; the doc tables come from its stdout.
-  `tests/test_heldout_eval.py` covers the pure scoring code and runs in CI without data.
-- A stacker or new model ships only if its paired CI against the shipped answer is above zero.
-- **Age model experiment (not adopted):** `tools/kaggle/age_model/` holds the Kaggle kernels and
-  `faceprep.py`, the torch-free crop rebuild that `tests/test_age_model_parity.py` pins to the
-  app's input. `tools/eval_utkface.py` is the UTKFace OOD eval. Results: `docs/eval/age_model.md`.
+| `AGE_MODEL`, `RACE_MODEL`, ... (the Docker build ARG names) | Comma-separated backends the native app may load (empty = none, unset = all present). Set by `install-and-run.sh`. |
 
 ## Invariants and gotchas
 
-- **Pins must resolve on Python 3.11** (Docker base `python:3.11-slim`, dev container) and 3.12
-  (CI, local `.venv`). CI fetches only the required files (`fetch_models.py --keys`, about 3 MB);
-  never make it fetch the optional weights (several GB).
-- **Weights live outside git** (moved off git-lfs; history kept). `models/*` is gitignored except
-  the manifest and its `"in_git": true` files; `.gitignore` and `.dockerignore` exceptions must
-  match those entries (a test checks), and every model path in `core/constants.py` needs a
-  manifest entry (a test checks). License decides `source`: permissive -> `hf` (mirror
-  `kaitlynbassford/face-analyzer-weights`; upload there and update its model card),
-  restricted/unclear -> `upstream` (original URL, pinned), no direct URL -> `manual`. Keep
-  `MODEL_LICENSES.md` in sync. `hf` URLs are pinned to `hf_revision`; after changing HF files,
-  re-pin all of them.
-- Never check out an old branch that still tracks the weights under git-lfs in the main
-  checkout (use a worktree): switching back deletes the ignored local copies, including the
-  bring-your-own `dan`/`deep3d` files that cannot be downloaded again.
-- Check model files through `load_models()` / `_present()` in `pipeline/loader.py` (treats an old
-  LFS pointer as absent), never with a bare `.exists()`.
-- Face detection needs any one detector, not SSD: `detectors/factory.py`
-  `resolve_face_detector()` falls back to SSD, then any loaded detector.
-- `requirements.txt` is also the Streamlit Community Cloud install file: keep it free of anything
-  that breaks a plain `pip install -r` (no mediapipe: it drags in opencv-contrib 5.x).
-- **Demo mode** (`FACE_ANALYZER_DEMO=1`, `demo.py`): any new feature that persists or shares
-  faces must be gated on `is_demo_mode()`. The demo loads only the `DEMO_MODELS` allowlist
-  (hf-mirrored, no torch/TF; RetinaFace, never SSD). Don't add a tracked
-  `.streamlit/config.toml`: it would apply to local dev too.
-- **Themes:** colour tokens in `ui/theme.css` stay plain `#rrggbb`; `tests/test_theme.py` parses
-  them and enforces WCAG AA. `theme.css` is read once per process: restart Streamlit to see edits.
-- Live webcam state is per-session (`new_live_session()` on every script run), never module-level.
-- **Imports:** relative inside the package; absolute (`from face_analyzer import inference`) only
-  in `app.py` (run as a script), `tests/` and `tools/`. `inference.py` re-exports public names
-  only; import private helpers from their defining module. `try/except ImportError` is reserved
-  for genuinely optional dependencies (torch, tensorflow, mediapipe, onnxruntime, scipy).
-- Local-only, untracked data: `data/` (FairFace + eval cache), `assets/` (benchmark photos for
-  `tools/benchmark.py` and `tools/ground_truth.json`), `tmp/`, `ideas/`.
+- **Pins must resolve on Python 3.11** (Docker, dev container) and 3.12 (CI, local `.venv`). CI
+  fetches only the required ~3 MB of weights; never make it fetch the optional ones (several GB).
+- **Weights live outside git**, listed in `models/manifest.json`. To add or change one, follow
+  [docs/setup.md](docs/setup.md#adding-or-changing-a-model-file); tests enforce the manifest, the
+  pinned mirror revision and the ignore-file exceptions. Check files through `load_models()` /
+  `_present()` (an old LFS pointer counts as absent), never a bare `.exists()`.
+- Never check out an old branch that still tracks the weights in git-lfs in the main checkout
+  (use a worktree): switching back deletes the ignored local copies, including the
+  bring-your-own `dan`/`deep3d` files that can't be downloaded again.
+- Model lists are ordered most-accurate-first. A new model, fusion or stacker ships only if its
+  paired confidence interval against the shipped answer is above zero.
+- **Evaluation** uses its own Python 3.11 venv, `.venv-eval`; never install eval packages into
+  `.venv`. Setup in [docs/setup.md](docs/setup.md#held-out-evaluation), method and results in
+  [docs/eval/](docs/eval/).
+- Detection needs any one detector, not SSD (`resolve_face_detector()` falls back to SSD, then
+  any loaded detector).
+- `requirements.txt` is also the Streamlit Community Cloud install file: it must survive a plain
+  `pip install -r` (no mediapipe, which drags in opencv-contrib 5.x).
+- **Demo mode:** gate any feature that persists or shares faces on `is_demo_mode()`. The demo
+  loads only the `DEMO_MODELS` allowlist (hf-mirrored, no torch/TF, RetinaFace not SSD). Don't
+  track a `.streamlit/config.toml`; it would apply to local dev too.
+- Theme colour tokens in `ui/theme.css` stay plain `#rrggbb` (`tests/test_theme.py` checks WCAG
+  AA). The CSS is read once per process: restart Streamlit to see edits.
+- Live webcam state is per-session (`new_live_session()`), never module-level.
+- **Imports:** relative inside the package; absolute only in `app.py` (run as a script),
+  `tests/` and `tools/`. `inference.py` re-exports public names only. `try/except ImportError`
+  only for optional dependencies (torch, tensorflow, mediapipe, onnxruntime, scipy).
+- Local-only, untracked: `data/` (FairFace and eval cache), `assets/` (benchmark photos), `tmp/`,
+  `ideas/`.
 
-## Agent workflow
+## Responsible use
 
-- **Skills:** `.agents/skills/` holds the repo's skills (`investigate-first`, `lean-build`,
-  `safe-refactor`, `surgical-patch`, `verify-and-stop`), each with Codex metadata in
-  `agents/openai.yaml`. `.claude/skills/` symlinks to them so Claude Code sees the same set.
-  Streamlit's own `developing-with-streamlit` skill ships inside the installed package; link it
-  locally with
-  `ln -s ../../.venv/lib/python3.12/site-packages/streamlit/.agents/skills/developing-with-streamlit .agents/skills/`
-  and `ln -s ../../.agents/skills/developing-with-streamlit .claude/skills/` (both links are
-  gitignored).
-- **Subagents:** `docker-tester` (`.claude/agents/docker-tester.md`, Codex:
-  `.codex/agents/docker-tester.toml`, same instructions) builds the image, checks its contents,
-  smoke-tests the pipeline and boots the app. Use it to verify Docker changes.
-- **MCP:** `.mcp.json` registers the Playwright MCP server for checking the UI in a browser.
-- **Plugins:** `.claude/settings.json` enables `impeccable` (design review against
-  `PRODUCT.md`/`DESIGN.md`) and `commit-commands`; `.codex/config.toml` enables `python-skills`
-  from the `fcakyon/claude-codex-settings` marketplace.
-- **Specs and plans:** design specs live in `docs/agents/specs/` and implementation plans in
-  `docs/agents/plans/`, named `YYYY-MM-DD-<topic>.md`. Commit them once the work lands.
-- Personal settings stay out of git: `.claude/settings.local.json`, `CLAUDE.local.md`, and the
-  owner's to-do ledger `STEPS-FOR-OWNER.md`.
+The README's [Responsible use](README.md#responsible-use) section applies to the code you write.
+
+- Present age, gender, race and emotion as appearance-based guesses, never facts about a person.
+- Don't add features that identify, track or profile people (new recognition or search paths,
+  cross-photo tracking, exporting face data) without the owner's explicit sign-off.
+- Storing a face stays an explicit user action and is disabled in demo mode.
+
+## Agent configuration
+
+- **Skills:** `.agents/skills/` (with Codex metadata in `agents/openai.yaml`); `.claude/skills/`
+  symlinks to them. To add Streamlit's bundled skill locally (the links are gitignored):
+
+  ```bash
+  ln -s "$(.venv/bin/python -c 'import pathlib, streamlit; print(pathlib.Path(streamlit.__file__).parent / ".agents/skills/developing-with-streamlit")')" .agents/skills/
+  ln -s ../../.agents/skills/developing-with-streamlit .claude/skills/
+  ```
+
+- **Subagent:** `docker-tester` (`.claude/agents/`, Codex: `.codex/agents/`, same instructions).
+- **MCP:** Playwright, in `.mcp.json`.
+- **Plugins:** `impeccable` and `commit-commands` (`.claude/settings.json`); `python-skills` for
+  Codex (`.codex/config.toml`).
+- Personal, untracked: `.claude/settings.local.json`, `CLAUDE.local.md`, `STEPS-FOR-OWNER.md`.
