@@ -125,7 +125,7 @@ yourself, these are the versions the Dockerfile pins:
 | `dan` emotion, `mivolo` age/gender, `deep3d` 3D reconstruction, `franunet` age progression | `torch==2.14.1+cpu torchvision==0.29.1+cpu` (with `--extra-index-url https://download.pytorch.org/whl/cpu`) |
 | `mivolo` age/gender | `ultralytics==8.1.0 timm==0.8.13.dev0 safetensors==0.8.0 huggingface_hub==2.1.1` |
 | `deepface` race/gender, `mini_xception` emotion, `vggface` recognition, `mobilenetv2` mask | `tensorflow-cpu==2.21.0 tf-keras==2.21.0` |
-| `yolo`/`scrfd`/`retinaface` detectors, `mobilenet` glasses | `onnxruntime==1.30.0` |
+| `yolo`/`scrfd`/`retinaface` detectors, `mobilenet` glasses | `onnxruntime==1.31.1` |
 | Face landmarks, gaze, liveness, hand landmarks | `mediapipe==1.1.0` |
 | `deep3d` 3D reconstruction | `scipy==1.17.1` |
 | `lbph` recognition | `opencv-contrib-python-headless==4.14.0.94` in place of `opencv-python-headless` |
@@ -163,7 +163,7 @@ uv venv --python 3.11 .venv-eval
 uv pip install --python .venv-eval/bin/python -r requirements-dev.txt
 uv pip install --python .venv-eval/bin/python --extra-index-url https://download.pytorch.org/whl/cpu \
     --index-strategy unsafe-best-match torch==2.14.1+cpu torchvision==0.29.1+cpu
-uv pip install --python .venv-eval/bin/python onnxruntime==1.30.0 tensorflow-cpu==2.21.0 tf-keras==2.21.0
+uv pip install --python .venv-eval/bin/python onnxruntime==1.31.1 tensorflow-cpu==2.21.0 tf-keras==2.21.0
 uv pip install --python .venv-eval/bin/python ultralytics==8.1.0 timm==0.8.13.dev0 safetensors==0.8.0 huggingface_hub==2.1.1
 uv pip install --python .venv-eval/bin/python mediapipe==1.1.0
 # ultralytics and mediapipe pull in OpenCV 5 builds without Caffe support; keep only the pin
