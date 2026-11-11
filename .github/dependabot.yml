@@ -22,6 +22,11 @@ updates:
     groups:
       pip-minor-patch:
         update-types: ["minor", "patch"]
+    ignore:
+      # OpenCV 5 removed the dnn Caffe importer, which loads the caffe age/gender, dex and
+      # eccv16 colorization models (pipeline/loader.py). Stay on 4.x until those are ported.
+      - dependency-name: "opencv-python-headless"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: docker
     directory: /
     schedule:
