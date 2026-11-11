@@ -9,7 +9,26 @@ __pycache__/
 venv/
 ENV/
 env/
+
+# Secrets and machine-local settings (keep an example file if variables are ever required)
 .env
+.env.*
+!.env.example
+*.local.*
+*.pem
+*.key
+
+# Personal agent settings and agent scratch output (shared agent config is tracked)
+.claude/settings.local.json
+CLAUDE.local.md
+STEPS-FOR-OWNER.md
+HANDOFF.md
+.superpowers/
+.playwright-mcp/
+.impeccable/
+# Symlinks into the installed streamlit package; recreate them per AGENTS.md
+.agents/skills/developing-with-streamlit
+.claude/skills/developing-with-streamlit
 
 # Output & processed media
 output/
