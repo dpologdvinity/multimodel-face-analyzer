@@ -84,6 +84,7 @@ Thumbs.db
 coverage.xml
 junit.xml
 
-# Claude triage workflow scratch files
+# Claude triage and CI-doctor workflow scratch files
 /.triage/
 /.venv-types/
+/.ci-doctor/
