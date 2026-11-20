@@ -185,12 +185,17 @@ jobs:
           models = inference.load_models()
           loaded = {f: sorted(v) for f, v in vars(models).items() if f.endswith("_nets") and v}
           print("loaded:", loaded)
+          detector = "ssd"
           if os.environ["PROFILE"] == "onnx":
               for feature in ("age_nets", "gender_nets", "race_nets"):
                   assert "fairface" in loaded.get(feature, []), f"fairface missing from {feature}"
               assert "ferplus" in loaded.get("emotion_nets", []), "ferplus missing"
+              assert "retinaface" in loaded.get("retinaface_nets", []), "retinaface missing"
+              # The demo's detector; the config default (yolo) would fall back to SSD here.
+              detector = "retinaface"
           image = cv2.imread("src/face_analyzer/ui/sample_photo.jpg")
           config = inference.AnalysisConfig(
+              face_detector=detector,
               active_age=set(models.age_nets),
               active_gender=set(models.gender_nets),
               active_emotion=set(models.emotion_nets),
@@ -240,6 +245,13 @@ jobs:
         with:
           sarif_file: trivy.sarif
           category: trivy
+      - name: Keep the Trivy report
+        if: matrix.profile == 'onnx'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: trivy-report
+          path: trivy.sarif
+          retention-days: 14
       - name: Trivy summary
         if: matrix.profile == 'onnx'
         run: |
