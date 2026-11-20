@@ -56,3 +56,11 @@ jobs:
           .github/scripts/report-issue.sh "ci: the live demo check is failing"
           "The daily check of the deployed demo failed: $RUN_URL (screenshots in its artifacts)."
           bug "area: demo"
+      - name: Close the issue now that the check passes
+        if: success() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          .github/scripts/resolve-issue.sh "ci: the live demo check is failing" "Passing again: $RUN_URL"

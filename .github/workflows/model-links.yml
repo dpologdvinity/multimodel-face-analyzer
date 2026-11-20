@@ -51,3 +51,11 @@ jobs:
           "The weekly probe of models/manifest.json found an unreachable URL: $RUN_URL.
           See docs/setup.md#adding-or-changing-a-model-file."
           bug "area: models"
+      - name: Close the issue now that the check passes
+        if: success() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          .github/scripts/resolve-issue.sh "ci: a model download link is broken" "Passing again: $RUN_URL"

@@ -40,3 +40,11 @@ jobs:
         run: |
           .github/scripts/report-issue.sh "docs: broken links found by the link check" \
             "$(cat lychee-report.md)" documentation
+      - name: Close the issue now that every link works
+        if: github.event_name == 'schedule' && steps.lychee.outputs.exit_code == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          .github/scripts/resolve-issue.sh "docs: broken links found by the link check" "Every link works again: $RUN_URL"
