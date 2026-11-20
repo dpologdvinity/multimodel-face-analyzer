@@ -14,8 +14,10 @@ venv=.venv-types
 stamp=$venv/.requirements-stamp
 if [ ! -x "$venv/bin/python" ] || [ requirements-dev.txt -nt "$stamp" ] \
   || [ requirements.txt -nt "$stamp" ]; then
+  # Start clean, so a package dropped from the requirements doesn't linger.
+  rm -rf "$venv"
   if command -v uv > /dev/null; then
-    uv venv -q --allow-existing --python 3.12 "$venv"
+    uv venv -q --python 3.12 "$venv"
     VIRTUAL_ENV=$venv uv pip install -q -r requirements-dev.txt
   else
     python3 -m venv "$venv"
