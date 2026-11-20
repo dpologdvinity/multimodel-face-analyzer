@@ -13,7 +13,7 @@ Python 3.11 or 3.12.
 git clone https://github.com/dpologdvinity/multimodel-face-analyzer.git
 cd multimodel-face-analyzer
 python -m venv .venv && . .venv/bin/activate     # or: uv venv && . .venv/bin/activate
-pip install -r requirements-dev.txt              # pinned deps, pytest, ruff, and `-e .`
+pip install -r requirements-dev.txt              # pinned deps, pytest, ruff, basedpyright, `-e .`
 python tools/fetch_models.py --keys              # required detector only (~3 MB)
 streamlit run src/face_analyzer/app.py
 ```
@@ -33,8 +33,15 @@ CI runs these on Python 3.11 and 3.12; run them before you push:
 ```bash
 ruff check .
 ruff format --check .
-python -m pytest -q
+basedpyright -p pyproject.toml   # no new type errors (older ones: .basedpyright/baseline.json)
+python -m pytest -q --cov        # fails below the coverage floor in pyproject.toml
 ```
+
+CI also drives the public demo in a real browser, audits the dependencies, scans for secrets
+and vulnerabilities, and builds the Docker image when its inputs change.
+[docs/ci.md](docs/ci.md) describes every check and how to run each one locally. If you fix a
+baselined type error, run `basedpyright -p pyproject.toml --writebaseline` and commit the
+smaller baseline.
 
 Tests that need optional weights or local photos skip when the files are missing.
 `FACE_ANALYZER_NETWORK_TESTS=1 python -m pytest tests/test_manifest_urls.py` checks that every
@@ -54,7 +61,9 @@ re-run `tools/benchmark.py`.
 - Bug fixes start with a failing test that reproduces the bug.
 - Update README.md, ARCHITECTURE.md, AGENTS.md or `docs/` when a change affects what they
   describe.
-- Open a pull request against `master`; it merges once CI is green.
+- Open a pull request against `master` with a Conventional Commit title (it becomes the squash
+  commit's subject) and fill in the template's checklist. It merges once the required
+  **CI OK** check is green.
 
 ## Model weights and licensing
 
