@@ -1,0 +1,4 @@
+# Browser smoke test (tests/test_browser_smoke.py), installed by the CI browser job on top of
+# requirements.txt. Not part of requirements-dev.txt: it needs a ~200 MB Chromium download.
+playwright==1.65.2
+pytest==9.2.0
