@@ -52,4 +52,6 @@ jobs:
             push) [ "${BEFORE//0/}" = "" ] && range="" || range="$BEFORE..$AFTER" ;;
             *) range="" ;;
           esac
-          /tmp/gitleaks git --redact --verbose --exit-code 1 ${range:+--log-opts="$range"} .
+          # -m includes merge commits' own diffs, so a secret added while resolving a merge
+          # conflict is scanned too.
+          /tmp/gitleaks git --redact --verbose --exit-code 1 --log-opts="-m${range:+ $range}" .
