@@ -71,4 +71,5 @@ jobs:
                  present a guess as a fact (the README's Responsible use section)
             Only add labels. Do nothing else.
           claude_args: >-
+            --permission-mode default
             --allowedTools "Read,Glob,Grep,Bash(.github/scripts/add-labels.sh:*)"
