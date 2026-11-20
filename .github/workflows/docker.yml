@@ -28,9 +28,12 @@ on:
     paths:
       - Dockerfile
       - .dockerignore
+      - .hadolint.yaml
       - requirements.txt
+      - pyproject.toml
       - models/**
       - tools/fetch_models.py
+      - src/**
       - .github/workflows/docker.yml
   schedule:
     - cron: "23 5 * * 2"
@@ -87,6 +90,10 @@ jobs:
       fail-fast: false
       matrix:
         profile: ${{ fromJSON(needs.plan.outputs.profiles) }}
+    permissions:
+      contents: read
+      # Trivy's findings are uploaded to the Security tab (code scanning).
+      security-events: write
     env:
       TAG: face-analyzer:ci-${{ matrix.profile }}
     steps:
@@ -137,7 +144,9 @@ jobs:
           tags: ${{ env.TAG }}
           build-args: ${{ steps.args.outputs.build-args }}
           cache-from: type=gha,scope=${{ matrix.profile }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.profile }}
+          # The full image's multi-GB layers would evict every other cache in the repository's
+          # 10 GB budget, so only the small profiles write theirs.
+          cache-to: ${{ matrix.profile != 'full' && format('type=gha,mode=max,scope={0}', matrix.profile) || '' }}
       - name: Image size
         run: |
           docker images "$TAG" --format 'Image size: {{.Size}}' | tee -a "$GITHUB_STEP_SUMMARY"
@@ -145,7 +154,7 @@ jobs:
         env:
           PROFILE: ${{ matrix.profile }}
         run: |
-          docker run --rm -e PROFILE "$TAG" python - <<'EOF'
+          docker run --rm -i -e PROFILE "$TAG" python - <<'EOF'
           import importlib.util
           import os
 
@@ -166,7 +175,7 @@ jobs:
         env:
           PROFILE: ${{ matrix.profile }}
         run: |
-          docker run --rm -e PROFILE "$TAG" python - <<'EOF'
+          docker run --rm -i -e PROFILE "$TAG" python - <<'EOF'
           import os
 
           import cv2
@@ -221,6 +230,8 @@ jobs:
           format: sarif
           output: trivy.sarif
           severity: HIGH,CRITICAL
+          # Without this, SARIF output ignores the severity filter and lists every finding.
+          limit-severities-for-sarif: true
           ignore-unfixed: true
           scanners: vuln
       - name: Upload the Trivy findings
