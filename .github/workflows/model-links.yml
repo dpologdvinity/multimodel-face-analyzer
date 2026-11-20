@@ -13,14 +13,24 @@ on:
       - models/manifest.json
       - tests/test_manifest_urls.py
 
+concurrency:
+  group: model-links-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
   links:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
@@ -29,3 +39,23 @@ jobs:
       - run: python -m pytest -q tests/test_manifest_urls.py
         env:
           FACE_ANALYZER_NETWORK_TESTS: "1"
+      # A weekly failure means an upstream model file moved or vanished: keep one issue open.
+      - name: Report the failure as an issue
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: >-
+          .github/scripts/report-issue.sh "ci: a model download link is broken"
+          "The weekly probe of models/manifest.json found an unreachable URL: $RUN_URL.
+          See docs/setup.md#adding-or-changing-a-model-file."
+          bug "area: models"
+      - name: Close the issue now that the check passes
+        if: success() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          .github/scripts/resolve-issue.sh "ci: a model download link is broken" "Passing again: $RUN_URL"

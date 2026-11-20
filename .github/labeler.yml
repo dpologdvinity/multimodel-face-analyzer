@@ -1,0 +1,68 @@
+# Path labels for pull requests (.github/workflows/labeler.yml). Areas follow ARCHITECTURE.md.
+"area: models":
+  - changed-files:
+      - any-glob-to-any-file:
+          - models/**
+          - tools/fetch_models.py
+          - src/face_analyzer/attributes/**
+          - src/face_analyzer/detectors/**
+          - src/face_analyzer/nets/**
+          - src/face_analyzer/model_selection.py
+          - MODEL_LICENSES.md
+"area: pipeline":
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/face_analyzer/pipeline/**
+          - src/face_analyzer/fusion/**
+          - src/face_analyzer/core/**
+          - src/face_analyzer/gallery/**
+          - src/face_analyzer/liveness.py
+          - src/face_analyzer/inference.py
+"area: ui":
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/face_analyzer/ui/**
+          - src/face_analyzer/app.py
+          - DESIGN.md
+"area: demo":
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/face_analyzer/demo.py
+          - streamlit_app.py
+          - docs/deploy.md
+"area: eval":
+  - changed-files:
+      - any-glob-to-any-file:
+          - tools/eval*.py
+          - tools/benchmark.py
+          - tools/fit_stacker.py
+          - docs/eval/**
+          - docs/benchmark.md
+"area: ci":
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/**
+          - lefthook.yml
+          - .lychee.toml
+          - .hadolint.yaml
+          - .basedpyright/**
+docker:
+  - changed-files:
+      - any-glob-to-any-file:
+          - Dockerfile
+          - .dockerignore
+          - build-and-run.sh
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - tests/**
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.md"
+          - docs/**
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - requirements*.txt
+          - pyproject.toml

@@ -1,0 +1,9 @@
+# hadolint settings for the Dockerfile (CI: .github/workflows/docker.yml).
+failure-threshold: warning
+ignored:
+  # Pinning apt package versions on python:3.11-slim breaks the build whenever Debian ships a
+  # security update and drops the old version; the base image tag is what gets pinned instead.
+  - DL3008
+  # Each optional heavy dependency (torch, scipy, onnxruntime, tensorflow, mivolo, mediapipe)
+  # installs in its own RUN on purpose, so changing one build ARG reuses the other layers.
+  - DL3059

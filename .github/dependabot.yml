@@ -1,11 +1,17 @@
 # Weekly dependency updates. Minor/patch bumps are grouped into one PR per
-# ecosystem; major bumps arrive as individual PRs for separate review.
+# ecosystem and merge themselves once CI is green (dependabot-automerge.yml);
+# major bumps arrive as individual PRs for separate review. The 7-day cooldown keeps a
+# release out until it has been public for a week (a compromised release is usually caught
+# by then); security updates ignore it.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
+    cooldown:
+      default-days: 7
     schedule:
       interval: weekly
+    labels: [dependencies, "area: ci"]
     commit-message:
       prefix: "ci"
       include: scope
@@ -14,8 +20,11 @@ updates:
         update-types: ["minor", "patch"]
   - package-ecosystem: pip
     directory: /
+    cooldown:
+      default-days: 7
     schedule:
       interval: weekly
+    labels: [dependencies, python]
     commit-message:
       prefix: "chore"
       include: scope
@@ -29,8 +38,11 @@ updates:
         update-types: ["version-update:semver-major"]
   - package-ecosystem: docker
     directory: /
+    cooldown:
+      default-days: 7
     schedule:
       interval: weekly
+    labels: [dependencies, docker]
     commit-message:
       prefix: "chore"
       include: scope

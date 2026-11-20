@@ -1,0 +1,25 @@
+# Blocks a pull request that adds or bumps a dependency with a known high or critical
+# vulnerability, before it reaches master. Complements the pip-audit job in ci.yml, which audits
+# what requirements.txt already pins.
+name: Dependency review
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
+        with:
+          fail-on-severity: high
+          show-openssf-scorecard: true
+          warn-only: false

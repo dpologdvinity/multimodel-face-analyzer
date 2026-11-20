@@ -1,0 +1,54 @@
+# Bug report form. Most bugs here depend on which backends and detector ran, and where (native,
+# Docker or the public demo), so the form asks for those up front.
+name: Bug report
+description: Something in the analyzer is broken or wrong
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Upload a photo with two faces (or press "Try a sample")
+        2. Turn on Age: FairFace and Caffe
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where it runs
+      options:
+        - Public demo (streamlit.app)
+        - Native (streamlit run src/face_analyzer/app.py)
+        - Docker (build-and-run.sh)
+    validations:
+      required: true
+  - type: input
+    id: models
+    attributes:
+      label: Detector and models in use
+      description: The sidebar lists them; the JSON export records them too.
+      placeholder: e.g. RetinaFace; Age FairFace; Emotion HSEmotion
+  - type: input
+    id: environment
+    attributes:
+      label: OS, Python version and browser
+      placeholder: e.g. Ubuntu 24.04, Python 3.12, Firefox 140
+  - type: textarea
+    id: logs
+    attributes:
+      label: Traceback or terminal output
+      render: text
+  - type: markdown
+    attributes:
+      value: >-
+        Please don't attach photos of real people without their consent. The sample photo or a
+        public-domain image is usually enough to show the problem.

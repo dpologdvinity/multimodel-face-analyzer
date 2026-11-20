@@ -1,0 +1,59 @@
+# Secret scanning on every push and pull request (their own commits) and weekly across the full
+# history. The app reads no secrets, so any match is a leak (.gitleaks.toml lists the one reviewed
+# false positive). lefthook runs the same scan before
+# each commit; this catches commits made without the hook. Uses the MIT gitleaks CLI, checked
+# against its release checksum.
+name: gitleaks
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: gitleaks-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          curl -sSfL -o /tmp/gitleaks.tgz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  /tmp/gitleaks.tgz" | sha256sum -c -
+          tar -xzf /tmp/gitleaks.tgz -C /tmp gitleaks
+      - name: Scan
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          # Any --log-opts replaces gitleaks' default "--all --full-history", so full scans pass it
+          # back explicitly. -m includes merge commits' own diffs, so a secret added while
+          # resolving a merge conflict is scanned too.
+          case "$EVENT" in
+            pull_request) range="$BASE..$HEAD" ;;
+            # A new branch's first push has an all-zero "before"; scan everything then.
+            push) [ "${BEFORE//0/}" = "" ] && range="--all --full-history" || range="$BEFORE..$AFTER" ;;
+            *) range="--all --full-history" ;;
+          esac
+          /tmp/gitleaks git --redact --verbose --exit-code 1 --log-opts="-m $range" .

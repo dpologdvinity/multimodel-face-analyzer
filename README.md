@@ -79,7 +79,10 @@ lifecycle and demo mode in more depth.
 ## Development
 
 [CONTRIBUTING.md](CONTRIBUTING.md) covers local setup, the lint and test commands CI runs, and
-commit conventions. The repo is also set up for coding agents: [AGENTS.md](AGENTS.md) is the
+commit conventions. [docs/ci.md](docs/ci.md) maps the CI: lint, a type-check ratchet, tests with
+coverage on two Pythons, a real-browser run of the public demo, Docker builds that prove the
+image works, security scanning, a daily check of the deployed demo, and Claude Code agents that
+review pull requests, triage issues and diagnose CI failures. The repo is also set up for coding agents: [AGENTS.md](AGENTS.md) is the
 single instruction file (`CLAUDE.md` imports it), with project skills in `.agents/skills/`, a
 Docker-testing subagent for Claude Code and Codex, Playwright MCP config in `.mcp.json`, and
 the design specs and implementation plans behind past changes in [docs/agents/](docs/agents/).

@@ -22,9 +22,45 @@ where = ["src"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 
+# Read by pyright and basedpyright (CI's type check, docs/ci.md; run it with tools/typecheck.sh).
+# No venv setting: the check passes --pythonpath, and a missing venv is a configuration error.
+# A personal pyrightconfig.json can point an editor at .venv; `-p pyproject.toml` keeps it from
+# changing the check's result.
+[tool.pyright]
+include = ["src", "tests", "tools", "streamlit_app.py"]
+# Vendored upstream networks (also excluded from ruff), and the Kaggle training scripts, which
+# run in Kaggle's environment rather than this repo's.
+exclude = [
+  "src/face_analyzer/nets",
+  "tools/kaggle",
+  "**/__pycache__",
+  ".venv*",
+  ".worktrees",
+  "data",
+  "tmp",
+  "ideas",
+]
+typeCheckingMode = "standard"
+# Whether a package ships its sources varies by machine, not by code.
+reportMissingModuleSource = "none"
+
 [tool.ruff]
 target-version = "py311"
 extend-exclude = ["src/face_analyzer/nets"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I", "B", "UP"]
+
+[tool.coverage.run]
+source = ["face_analyzer"]
+branch = true
+# Relative paths let CI combine and publish reports from any checkout location.
+relative_files = true
+omit = ["*/face_analyzer/nets/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+# Fail below this total: a floor just under the measured 65%, raised as tests are added.
+fail_under = 63
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError"]

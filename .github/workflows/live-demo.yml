@@ -1,0 +1,66 @@
+# Daily check of the deployed public demo (https://multimodel-face-analyzer.streamlit.app/):
+# wakes it if Community Cloud put it to sleep, analyzes the sample photo, switches to the Day
+# theme, and keeps the screenshots. A failure opens (or comments on) one issue, so a broken
+# deploy, a model mirror that went away, or a Cloud dependency change is caught the same day.
+name: Live demo
+
+on:
+  schedule:
+    - cron: "11 7 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: live-demo
+
+permissions:
+  contents: read
+
+jobs:
+  demo:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-e2e.txt
+      # The test drives a remote app, so only the browser tooling is needed, not the app.
+      - run: pip install -r requirements-e2e.txt
+      - run: python -m playwright install --with-deps chromium
+      - name: Drive the deployed demo
+        run: python -m pytest -q -ra -p no:cacheprovider tests/test_browser_smoke.py
+        env:
+          FACE_ANALYZER_E2E_URL: https://multimodel-face-analyzer.streamlit.app/
+          FACE_ANALYZER_E2E_SHOTS: screenshots
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: live-demo-screenshots
+          path: screenshots/
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Report the failure as an issue
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: >-
+          .github/scripts/report-issue.sh "ci: the live demo check is failing"
+          "The daily check of the deployed demo failed: $RUN_URL (screenshots in its artifacts)."
+          bug "area: demo"
+      - name: Close the issue now that the check passes
+        if: success() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          .github/scripts/resolve-issue.sh "ci: the live demo check is failing" "Passing again: $RUN_URL"

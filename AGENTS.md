@@ -11,8 +11,10 @@ emotion and other per-face attributes, packaged as `face_analyzer` (src layout).
 
 Run what applies and report each result; say so if you skipped a check.
 
-- [ ] `ruff check .`, `ruff format --check .` and `python -m pytest -q` pass (CI runs all three on
-  Python 3.11 and 3.12).
+- [ ] `ruff check .`, `ruff format --check .`, `tools/typecheck.sh` and `python -m pytest -q`
+  pass (CI runs them on Python 3.11 and 3.12, plus the checks in [docs/ci.md](docs/ci.md)).
+  Fixed a baselined type error? Commit the result of `tools/typecheck.sh --writebaseline`.
+  Don't run basedpyright in the main `.venv`: its optional packages rewrite the baseline.
 - [ ] `tests/fixtures/golden_analysis.json` is unchanged. Regenerate it
   (`UPDATE_GOLDEN=1 python -m pytest tests/test_pipeline_golden.py`) only for an intended behavior
   change, and say why; never hand-edit it or regenerate it to make a refactor pass.
@@ -27,7 +29,8 @@ Run what applies and report each result; say so if you skipped a check.
 ## How to work
 
 Branch from `master` as `<type>/<topic>` (e.g. `fix/center-edit`) and open a pull request into
-`master`; it merges once CI is green. Pick the project skill that fits:
+`master` with a Conventional Commit title; it squash-merges once the required **CI OK** check is
+green (`gh pr merge --auto --squash`). Pick the project skill that fits:
 
 | Task | Skill |
 | --- | --- |
@@ -61,7 +64,8 @@ tasks with exact files, commands and commits), both `YYYY-MM-DD-<topic>.md`; see
 ## Commands
 
 ```bash
-pip install -r requirements-dev.txt        # pinned deps + pytest + ruff + editable `-e .`
+pip install -r requirements-dev.txt        # pinned deps + pytest + ruff + basedpyright + `-e .`
+tools/typecheck.sh                         # type ratchet in CI's environment (.venv-types)
 lefthook install                           # pre-commit: gitleaks, ruff check/format, typos
 python tools/fetch_models.py --keys        # required detector only; --list, --all, or ARG=key pairs
 streamlit run src/face_analyzer/app.py     # app
@@ -71,7 +75,8 @@ streamlit run streamlit_app.py             # public demo (demo mode, fetches dem
 ```
 
 Tests that need weights or local photos skip via `tests/_models.py`; point them at real weights
-with `FACE_ANALYZER_MODEL_DIR=/path/to/models`.
+with `FACE_ANALYZER_MODEL_DIR=/path/to/models`. The browser test (`tests/test_browser_smoke.py`)
+skips unless `FACE_ANALYZER_E2E_URL` points at a running app; it needs `requirements-e2e.txt`.
 
 ## Environment variables
 
@@ -135,6 +140,9 @@ The README's [Responsible use](README.md#responsible-use) section applies to the
   ln -s ../../.agents/skills/developing-with-streamlit .claude/skills/
   ```
 
+- **CI agents:** `@claude` mentions, automatic PR review, issue triage and a CI-failure doctor
+  run Claude Code from `.github/workflows/claude*.yml`; they read this file, so its rules are
+  what they review against ([docs/ci.md](docs/ci.md#agents)).
 - **Subagent:** `docker-tester` (`.claude/agents/`, Codex: `.codex/agents/`, same instructions).
 - **MCP:** Playwright, in `.mcp.json`.
 - **Plugins:** `impeccable` and `commit-commands` (`.claude/settings.json`); `python-skills` for

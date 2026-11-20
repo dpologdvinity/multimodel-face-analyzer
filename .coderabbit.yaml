@@ -1,0 +1,46 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit reviews pull requests (free on public repos) once its GitHub App is installed for
+# this repository. It reviews against AGENTS.md; formatting, lint and types belong to CI, and
+# weights, fixtures and images are not reviewed at all.
+language: en-US
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  in_progress_fortune: false
+  sequence_diagrams: false
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    - "!**/*.png"
+    - "!**/*.jpg"
+    - "!**/*.gif"
+    - "!**/*.onnx"
+    - "!**/*.pb"
+    - "!**/*.npy"
+    - "!**/*.mat"
+    - "!src/face_analyzer/nets/**"
+    - "!tests/fixtures/**"
+    - "!.basedpyright/baseline.json"
+  path_instructions:
+    - path: "**/*"
+      instructions: >-
+        Review against AGENTS.md and the README's Responsible use section, most serious first:
+        age, gender, race and emotion presented as appearance-based guesses, never facts; no
+        new way to identify, track or profile people; persisting or sharing faces gated on
+        is_demo_mode(); features without working weights must not appear to work; weights stay
+        out of git (models/manifest.json); requirements.txt stays installable on Streamlit
+        Community Cloud. Don't comment on formatting, lint or types; CI checks those.
+    - path: "tests/**"
+      instructions: >-
+        Tests that need weights or local photos must skip through tests/_models.py rather than
+        fail. Flag any test that regenerates tests/fixtures/golden_analysis.json.
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - AGENTS.md
+chat:
+  auto_reply: true
