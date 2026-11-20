@@ -11,10 +11,10 @@ emotion and other per-face attributes, packaged as `face_analyzer` (src layout).
 
 Run what applies and report each result; say so if you skipped a check.
 
-- [ ] `ruff check .`, `ruff format --check .`, `basedpyright -p pyproject.toml` and
-  `python -m pytest -q` pass (CI runs them on Python 3.11 and 3.12, plus the checks in
-  [docs/ci.md](docs/ci.md)). Fixed a baselined type error? Commit the result of
-  `basedpyright -p pyproject.toml --writebaseline`.
+- [ ] `ruff check .`, `ruff format --check .`, `tools/typecheck.sh` and `python -m pytest -q`
+  pass (CI runs them on Python 3.11 and 3.12, plus the checks in [docs/ci.md](docs/ci.md)).
+  Fixed a baselined type error? Commit the result of `tools/typecheck.sh --writebaseline`.
+  Don't run basedpyright in the main `.venv`: its optional packages rewrite the baseline.
 - [ ] `tests/fixtures/golden_analysis.json` is unchanged. Regenerate it
   (`UPDATE_GOLDEN=1 python -m pytest tests/test_pipeline_golden.py`) only for an intended behavior
   change, and say why; never hand-edit it or regenerate it to make a refactor pass.
@@ -65,6 +65,7 @@ tasks with exact files, commands and commits), both `YYYY-MM-DD-<topic>.md`; see
 
 ```bash
 pip install -r requirements-dev.txt        # pinned deps + pytest + ruff + basedpyright + `-e .`
+tools/typecheck.sh                         # type ratchet in CI's environment (.venv-types)
 lefthook install                           # pre-commit: gitleaks, ruff check/format, typos
 python tools/fetch_models.py --keys        # required detector only; --list, --all, or ARG=key pairs
 streamlit run src/face_analyzer/app.py     # app

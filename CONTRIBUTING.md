@@ -33,15 +33,16 @@ CI runs these on Python 3.11 and 3.12; run them before you push:
 ```bash
 ruff check .
 ruff format --check .
-basedpyright -p pyproject.toml   # no new type errors (older ones: .basedpyright/baseline.json)
+tools/typecheck.sh               # no new type errors (older ones: .basedpyright/baseline.json)
 python -m pytest -q --cov        # fails below the coverage floor in pyproject.toml
 ```
 
 CI also drives the public demo in a real browser, audits the dependencies, scans for secrets
 and vulnerabilities, and builds the Docker image when its inputs change.
 [docs/ci.md](docs/ci.md) describes every check and how to run each one locally. If you fix a
-baselined type error, run `basedpyright -p pyproject.toml --writebaseline` and commit the
-smaller baseline.
+baselined type error, run `tools/typecheck.sh --writebaseline` and commit the smaller baseline.
+The script keeps its own `.venv-types` with exactly CI's packages, because the optional ones in
+your main `.venv` change the result.
 
 Tests that need optional weights or local photos skip when the files are missing.
 `FACE_ANALYZER_NETWORK_TESTS=1 python -m pytest tests/test_manifest_urls.py` checks that every
