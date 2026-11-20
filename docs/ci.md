@@ -88,7 +88,7 @@ are set up, each one logs a notice and does nothing.
 | [Claude](../.github/workflows/claude.yml) | The owner mentions `@claude` in an issue, comment or review | Answers, reviews, or pushes a branch with a fix, following AGENTS.md. |
 | [Claude review](../.github/workflows/claude-review.yml) | Every ready, same-repository pull request | Reviews against AGENTS.md and the Responsible use rules (demo gating, model honesty, the golden fixture, the Community Cloud install) with inline comments and one updated summary. |
 | [Claude triage](../.github/workflows/claude-triage.yml) | A new issue | Adds type, area, `needs-info`, `duplicate` and `responsible-use` labels. Issue text is untrusted, so a fixed step fetches the issue and labels into files and the agent can only read files and add existing labels ([`add-labels.sh`](../.github/scripts/add-labels.sh)). |
-| [Claude CI doctor](../.github/workflows/claude-ci-doctor.yml) | CI fails on a same-repository pull request | Reads the failed logs and the code, and comments the root cause and the smallest fix. |
+| [Claude CI doctor](../.github/workflows/claude-ci-doctor.yml) | CI fails on a same-repository pull request | Reads the failed logs, the pull request's diff and `master`'s code (the pull request is never checked out), and comments the root cause and the smallest fix. |
 
 [CodeRabbit](https://www.coderabbit.ai/) reviews pull requests too, configured in
 [`.coderabbit.yaml`](../.coderabbit.yaml) to review against AGENTS.md, once its GitHub App is

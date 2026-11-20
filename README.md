@@ -4,6 +4,11 @@ Real-time multi-model face analysis: 15 per-face and whole-frame features, four 
 detectors, and held-out-tested ways of combining interchangeable backends.
 
 [![CI](https://github.com/dpologdvinity/multimodel-face-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/dpologdvinity/multimodel-face-analyzer/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/dpologdvinity/multimodel-face-analyzer/python-coverage-comment-action-data/endpoint.json)](https://github.com/dpologdvinity/multimodel-face-analyzer/tree/python-coverage-comment-action-data)
+[![Docker](https://github.com/dpologdvinity/multimodel-face-analyzer/actions/workflows/docker.yml/badge.svg)](https://github.com/dpologdvinity/multimodel-face-analyzer/actions/workflows/docker.yml)
+[![Live demo check](https://github.com/dpologdvinity/multimodel-face-analyzer/actions/workflows/live-demo.yml/badge.svg)](https://github.com/dpologdvinity/multimodel-face-analyzer/actions/workflows/live-demo.yml)
+[![CodeQL](https://github.com/dpologdvinity/multimodel-face-analyzer/actions/workflows/codeql.yml/badge.svg)](https://github.com/dpologdvinity/multimodel-face-analyzer/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/dpologdvinity/multimodel-face-analyzer/badge)](https://scorecard.dev/viewer/?uri=github.com/dpologdvinity/multimodel-face-analyzer)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Live demo](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://multimodel-face-analyzer.streamlit.app/)
