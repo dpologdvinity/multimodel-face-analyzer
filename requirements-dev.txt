@@ -2,5 +2,5 @@
 basedpyright==1.40.2
 pytest==9.2.0
 pytest-cov==7.1.0
-ruff==0.17.4
+ruff==0.17.5
 -e .
