@@ -1,5 +1,6 @@
 # Secret scanning on every push and pull request (their own commits) and weekly across the full
-# history. The app reads no secrets, so any match is a leak. lefthook runs the same scan before
+# history. The app reads no secrets, so any match is a leak (.gitleaks.toml lists the one reviewed
+# false positive). lefthook runs the same scan before
 # each commit; this catches commits made without the hook. Uses the MIT gitleaks CLI, checked
 # against its release checksum.
 name: gitleaks
@@ -46,12 +47,13 @@ jobs:
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.event.after }}
         run: |
+          # Any --log-opts replaces gitleaks' default "--all --full-history", so full scans pass it
+          # back explicitly. -m includes merge commits' own diffs, so a secret added while
+          # resolving a merge conflict is scanned too.
           case "$EVENT" in
             pull_request) range="$BASE..$HEAD" ;;
             # A new branch's first push has an all-zero "before"; scan everything then.
-            push) [ "${BEFORE//0/}" = "" ] && range="" || range="$BEFORE..$AFTER" ;;
-            *) range="" ;;
+            push) [ "${BEFORE//0/}" = "" ] && range="--all --full-history" || range="$BEFORE..$AFTER" ;;
+            *) range="--all --full-history" ;;
           esac
-          # -m includes merge commits' own diffs, so a secret added while resolving a merge
-          # conflict is scanned too.
-          /tmp/gitleaks git --redact --verbose --exit-code 1 --log-opts="-m${range:+ $range}" .
+          /tmp/gitleaks git --redact --verbose --exit-code 1 --log-opts="-m $range" .

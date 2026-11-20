@@ -1,0 +1,12 @@
+# gitleaks settings (CI: .github/workflows/gitleaks.yml; pre-commit: lefthook.yml).
+# The default rules, plus one reviewed false positive.
+title = "multimodel-face-analyzer"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "generic-api-key reads the deep3d import's function names as a key; not a credential"
+targetRules = ["generic-api-key"]
+regexTarget = "match"
+regexes = ['''^landmarks_5pt_from_mediapipe, ''']

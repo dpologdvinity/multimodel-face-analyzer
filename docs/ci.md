@@ -58,8 +58,8 @@ tools/typecheck.sh --writebaseline   # after fixing errors: shrink the baseline,
 Every third-party action is pinned to a full commit SHA (Dependabot keeps them current), every
 job has a timeout and least-privilege `permissions`, and checkouts don't persist credentials.
 Findings from CodeQL, Trivy and Scorecard land in the repository's Security tab. Dependabot alerts
-and security updates are on, and [`.gitleaksignore`](../.gitleaksignore) lists the reviewed false
-positives in the history.
+and security updates are on, and [`.gitleaks.toml`](../.gitleaks.toml) allowlists the one reviewed
+false positive.
 
 ## Monitoring the deployed demo
 

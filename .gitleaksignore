@@ -1,9 +1,0 @@
-# Reviewed gitleaks false positives (fingerprint per line). All three match the function name
-# landmarks_5pt_from_mediapipe as a "generic-api-key"; none is a credential.
-5fbbceaf09aa862685b13e1bcbf517a7e1b5d88e:src/face_analyzer/attributes/transformers.py:generic-api-key:17
-c44a82b2f487ef5eaed75aeb0ff418212204a235:src/attributes/transformers.py:generic-api-key:26
-c44a82b2f487ef5eaed75aeb0ff418212204a235:src/attributes/transformers.py:generic-api-key:29
-# The same lines as they appear in merge commits' diffs (the scan includes merges).
-745b205b7fc255b68c5133c6a264b5fa4aa0ae3b:src/face_analyzer/attributes/transformers.py:generic-api-key:17
-de630eaa233f0383c36cc65970ad1b285741c498:src/attributes/transformers.py:generic-api-key:26
-de630eaa233f0383c36cc65970ad1b285741c498:src/attributes/transformers.py:generic-api-key:29
