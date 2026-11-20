@@ -1,0 +1,236 @@
+# Builds the Docker image the way users do (build-and-run.sh), boots it, and proves it works:
+#   hadolint     lints the Dockerfile (.hadolint.yaml lists the deliberate exceptions)
+#   image        builds each profile, then checks inside the container that the requested models
+#                loaded, the unrequested heavy runtimes are absent, the pipeline finds every face
+#                in the sample photo, and the Streamlit server answers its health check
+#   scan         Trivy scans the image for fixable HIGH/CRITICAL CVEs; findings land in the
+#                Security tab
+# Profiles: "minimal" (every model ARG empty, only the required SSD detector) and "onnx" (the
+# demo's onnxruntime set) run on every change to the build inputs. "full" (the Dockerfile's
+# defaults: torch, TensorFlow and several GB of weights) runs weekly and on demand.
+name: Docker
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - .hadolint.yaml
+      - requirements.txt
+      - pyproject.toml
+      - models/**
+      - tools/fetch_models.py
+      - src/**
+      - .github/workflows/docker.yml
+  push:
+    branches: [master]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - requirements.txt
+      - models/**
+      - tools/fetch_models.py
+      - .github/workflows/docker.yml
+  schedule:
+    - cron: "23 5 * * 2"
+  workflow_dispatch:
+    inputs:
+      full:
+        description: Also build the full default image (torch, TensorFlow, several GB of weights)
+        type: boolean
+        default: true
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  hadolint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0
+        with:
+          dockerfile: Dockerfile
+          config: .hadolint.yaml
+
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      profiles: ${{ steps.pick.outputs.profiles }}
+    steps:
+      - id: pick
+        env:
+          EVENT: ${{ github.event_name }}
+          FULL: ${{ inputs.full }}
+        run: |
+          if [ "$EVENT" = "schedule" ] || [ "$FULL" = "true" ]; then
+            echo 'profiles=["minimal","onnx","full"]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'profiles=["minimal","onnx"]' >> "$GITHUB_OUTPUT"
+          fi
+
+  image:
+    name: image (${{ matrix.profile }})
+    needs: [hadolint, plan]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: ${{ fromJSON(needs.plan.outputs.profiles) }}
+    env:
+      TAG: face-analyzer:ci-${{ matrix.profile }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The full image (torch + TensorFlow + weights) outgrows the runner's free disk otherwise.
+      - name: Free disk space
+        if: matrix.profile == 'full'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          df -h /
+      - name: Build arguments for the profile
+        id: args
+        env:
+          PROFILE: ${{ matrix.profile }}
+        run: |
+          features="AGE_MODEL GENDER_MODEL EMOTION_MODEL RACE_MODEL FACE_LANDMARKS_MODEL LIVENESS_MODEL
+            RECOGNITION_MODEL GLASSES_MODEL MASK_MODEL COLORIZATION_MODEL HAND_MODEL
+            RECONSTRUCTION_3D_MODEL YOLO_FACE_MODEL SCRFD_FACE_MODEL RETINAFACE_MODEL
+            AGE_PROGRESSION_MODEL"
+          {
+            echo "build-args<<EOF"
+            case "$PROFILE" in
+              minimal) for f in $features; do echo "$f="; done ;;
+              onnx)
+                for f in $features; do
+                  case "$f" in
+                    AGE_MODEL | GENDER_MODEL | RACE_MODEL) echo "$f=fairface" ;;
+                    EMOTION_MODEL) echo "$f=ferplus" ;;
+                    COLORIZATION_MODEL) echo "$f=eccv16" ;;
+                    RETINAFACE_MODEL) echo "$f=retinaface" ;;
+                    *) echo "$f=" ;;
+                  esac
+                done ;;
+              full) ;;
+            esac
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          load: true
+          push: false
+          tags: ${{ env.TAG }}
+          build-args: ${{ steps.args.outputs.build-args }}
+          cache-from: type=gha,scope=${{ matrix.profile }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.profile }}
+      - name: Image size
+        run: |
+          docker images "$TAG" --format 'Image size: {{.Size}}' | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Heavy runtimes only when requested
+        env:
+          PROFILE: ${{ matrix.profile }}
+        run: |
+          docker run --rm -e PROFILE "$TAG" python - <<'EOF'
+          import importlib.util
+          import os
+
+          installed = {
+              name: importlib.util.find_spec(name) is not None
+              for name in ("torch", "tensorflow", "mediapipe", "onnxruntime")
+          }
+          print(installed)
+          # onnxruntime is in requirements.txt (the demo's detector needs it), so it is always there.
+          expected = {
+              "minimal": {"torch": False, "tensorflow": False, "mediapipe": False, "onnxruntime": True},
+              "onnx": {"torch": False, "tensorflow": False, "mediapipe": False, "onnxruntime": True},
+              "full": {"torch": True, "tensorflow": True, "mediapipe": True, "onnxruntime": True},
+          }[os.environ["PROFILE"]]
+          assert installed == expected, f"expected {expected}"
+          EOF
+      - name: Pipeline finds every face in the sample photo
+        env:
+          PROFILE: ${{ matrix.profile }}
+        run: |
+          docker run --rm -e PROFILE "$TAG" python - <<'EOF'
+          import os
+
+          import cv2
+
+          from face_analyzer import inference
+
+          models = inference.load_models()
+          loaded = {f: sorted(v) for f, v in vars(models).items() if f.endswith("_nets") and v}
+          print("loaded:", loaded)
+          if os.environ["PROFILE"] == "onnx":
+              for feature in ("age_nets", "gender_nets", "race_nets"):
+                  assert "fairface" in loaded.get(feature, []), f"fairface missing from {feature}"
+              assert "ferplus" in loaded.get("emotion_nets", []), "ferplus missing"
+          image = cv2.imread("src/face_analyzer/ui/sample_photo.jpg")
+          config = inference.AnalysisConfig(
+              active_age=set(models.age_nets),
+              active_gender=set(models.gender_nets),
+              active_emotion=set(models.emotion_nets),
+              active_race=set(models.race_nets),
+          )
+          _, faces, found, _ = inference.analyze_frame(models, image, config)
+          print("faces:", len(faces))
+          # The sample is the six-person Expedition 59 crew portrait.
+          assert found and len(faces) == 6, f"expected 6 faces, got {len(faces)}"
+          EOF
+      - name: App boots and answers its health check
+        run: |
+          docker run -d --name app -p 8501:8501 "$TAG"
+          for _ in $(seq 1 60); do
+            if curl -sf http://localhost:8501/_stcore/health; then
+              echo
+              code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8501/)
+              echo "GET / -> $code"
+              [ "$code" = 200 ] || exit 1
+              if docker logs app 2>&1 | grep -q Traceback; then docker logs app; exit 1; fi
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs app
+          exit 1
+      - name: Stop the app
+        if: always()
+        run: docker rm -f app || true
+      # Trivy runs on the onnx profile only: it is the image closest to what most users build,
+      # and scanning the multi-GB full image would mostly report torch's and TensorFlow's CVEs.
+      - name: Trivy scan
+        if: matrix.profile == 'onnx'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.TAG }}
+          format: sarif
+          output: trivy.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          scanners: vuln
+      - name: Upload the Trivy findings
+        if: matrix.profile == 'onnx' && github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: trivy.sarif
+          category: trivy
+      - name: Trivy summary
+        if: matrix.profile == 'onnx'
+        run: |
+          count=$(python3 -c "import json; print(sum(len(r['results']) for r in json.load(open('trivy.sarif'))['runs']))")
+          echo "### Trivy: $count fixable HIGH/CRITICAL findings" >> "$GITHUB_STEP_SUMMARY"
