@@ -1,0 +1,15 @@
+# Link check settings (.github/workflows/link-check.yml). By hand:
+#   lychee --config .lychee.toml README.md CONTRIBUTING.md ARCHITECTURE.md MODEL_LICENSES.md docs
+# Sites that block bots answer 403/429; those count as alive, not broken.
+accept = [200, 202, 206, 403, 429]
+timeout = 20
+max_retries = 2
+no_progress = true
+exclude = [
+  '^https?://localhost',
+  '^https?://127\.0\.0\.1',
+  # Community Cloud answers bots with a cookie redirect loop; the live demo has its own daily
+  # browser check (.github/workflows/live-demo.yml).
+  '^https://multimodel-face-analyzer\.streamlit\.app',
+]
+exclude_path = [".worktrees", ".claude", ".agents", "docs/agents"]

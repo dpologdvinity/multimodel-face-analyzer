@@ -1,0 +1,42 @@
+# Checks every link in the docs: on pull requests that touch Markdown, and weekly (model
+# sources, papers and licenses move). A weekly failure keeps one issue open with the report.
+name: Link check
+
+on:
+  pull_request:
+    branches: [master]
+    paths: ["**.md", ".lychee.toml", ".github/workflows/link-check.yml"]
+  schedule:
+    - cron: "41 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: lychee
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          args: --config .lychee.toml README.md CONTRIBUTING.md ARCHITECTURE.md MODEL_LICENSES.md docs
+          format: markdown
+          output: lychee-report.md
+          jobSummary: true
+          fail: ${{ github.event_name == 'pull_request' }}
+      - name: Report broken links as an issue
+        if: github.event_name == 'schedule' && steps.lychee.outputs.exit_code != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          .github/scripts/report-issue.sh "docs: broken links found by the link check" \
+            "$(cat lychee-report.md)" documentation
