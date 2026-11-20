@@ -1,6 +1,7 @@
-# Turns on auto-merge for Dependabot's minor and patch updates (pip, GitHub Actions, Docker).
+# Turns on auto-merge for Dependabot's minor and patch updates to pip and GitHub Actions.
 # GitHub merges the PR only after the required "CI OK" check passes, so a bump that breaks a
-# test, the browser check or the audit stays open. Major updates wait for a person: a major
+# test, the browser check or the audit stays open. A merge made this way runs no workflows on
+# master (GitHub doesn't trigger workflows from GITHUB_TOKEN pushes); the next push does. Major updates wait for a person: a major
 # OpenCV, Streamlit or onnxruntime release can change model outputs (the golden test would
 # catch it, but the fix is a human call).
 name: Dependabot auto-merge
@@ -23,12 +24,25 @@ jobs:
     steps:
       - id: meta
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+      # Docker updates also wait for a person: the Docker workflow is path-filtered, so it is not
+      # part of the required CI OK check, and a base-image bump can break the image build.
       - name: Enable auto-merge for minor and patch updates
-        if: steps.meta.outputs.update-type != 'version-update:semver-major'
+        if: >-
+          steps.meta.outputs.update-type != 'version-update:semver-major' &&
+          steps.meta.outputs.package-ecosystem != 'docker'
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           UPDATE: ${{ steps.meta.outputs.update-type }}
         run: |
           echo "Update type: $UPDATE"
+          # gh merges at once when nothing is required, so make sure master's ruleset requires
+          # CI OK first; without it this would merge before CI finishes.
+          required=$(gh api "repos/$GH_REPO/rules/branches/master" \
+            --jq '[.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context] | index("CI OK") != null')
+          if [ "$required" != "true" ]; then
+            echo "::warning::master does not require the CI OK check; not enabling auto-merge."
+            exit 0
+          fi
           gh pr merge --auto --squash "$PR_URL"
