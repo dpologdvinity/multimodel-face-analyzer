@@ -31,7 +31,8 @@ jobs:
           format: markdown
           output: lychee-report.md
           jobSummary: true
-          fail: ${{ github.event_name == 'pull_request' }}
+          # Scheduled runs report through the issue below instead of failing.
+          fail: ${{ github.event_name != 'schedule' }}
       - name: Report broken links as an issue
         if: github.event_name == 'schedule' && steps.lychee.outputs.exit_code != '0'
         env:
