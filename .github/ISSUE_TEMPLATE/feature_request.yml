@@ -1,0 +1,27 @@
+# Feature request form. New features are checked against the README's Responsible use section.
+name: Feature request
+description: A new feature or an improvement to an existing one
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What should the analyzer do, and what would you use it for?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: The problem it solves, or what it makes possible.
+  - type: checkboxes
+    id: responsible-use
+    attributes:
+      label: Responsible use
+      description: >-
+        Features that identify, track or profile people (recognition or search, cross-photo
+        tracking, exporting face data) need the owner's explicit sign-off.
+      options:
+        - label: I've read the README's Responsible use section, and this request fits it.
+          required: true

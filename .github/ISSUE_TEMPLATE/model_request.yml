@@ -1,0 +1,36 @@
+# Request a new model backend. A backend ships only with a usable license and with held-out
+# evidence that it beats (or adds to) the shipped answer (AGENTS.md, docs/eval/).
+name: Model or backend request
+description: Propose a new model for an existing feature, or a new face detector
+labels: [enhancement, "area: models"]
+body:
+  - type: input
+    id: feature
+    attributes:
+      label: Feature
+      placeholder: e.g. Age, Emotion, Face detector
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Model and source
+      description: Paper or repository, and where the weights are downloaded from.
+    validations:
+      required: true
+  - type: input
+    id: license
+    attributes:
+      label: Weights and code license
+      description: MODEL_LICENSES.md lists the shipped models' licenses for comparison.
+      placeholder: e.g. MIT code, CC BY 4.0 weights
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Why it should help
+      description: >-
+        Reported accuracy, the dataset it was measured on, and its runtime (ONNX, torch,
+        TensorFlow) and size. A backend ships only if a paired confidence interval on held-out
+        data shows it beats or usefully adds to the shipped answer (docs/eval/).
