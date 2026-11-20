@@ -50,7 +50,7 @@ def _app_frame(page: "Page") -> "Frame":
         if wake.is_visible():
             wake.click()
         page.wait_for_timeout(1000)
-    pytest.fail(f"no Streamlit app at {E2E_URL} after {WAKE_MS // 1000} s")
+    raise AssertionError(f"no Streamlit app at {E2E_URL} after {WAKE_MS // 1000} s")
 
 
 @pytest.fixture(scope="module")
