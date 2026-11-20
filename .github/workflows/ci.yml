@@ -1,7 +1,7 @@
 # The merge gate. Every pull request and every push to master runs:
 #   lint     ruff (annotated inline on the diff), ruff format, typos, and the basedpyright ratchet
 #   test     the full suite on Python 3.11 and 3.12 with branch coverage and a coverage floor,
-#            then a check that the run left the tree clean (the golden fixture included)
+#            then a check that the run left the tracked files unchanged
 #   browser  the public demo, installed exactly as Streamlit Community Cloud installs it, driven
 #            in Chromium: sample photo analyzed, both themes screenshotted
 #   audit    pip-audit of requirements.txt against the PyPI advisory database
@@ -60,7 +60,7 @@ jobs:
         run: |
           basedpyright -p pyproject.toml --pythonpath "$(command -v python)" --writebaseline > /dev/null
           if ! git diff --quiet -- .basedpyright/baseline.json; then
-            echo "::error file=.basedpyright/baseline.json::Type errors were fixed: run 'basedpyright --writebaseline' and commit the smaller baseline."
+            echo "::error file=.basedpyright/baseline.json::Type errors were fixed: run 'tools/typecheck.sh --writebaseline' and commit the smaller baseline."
             git diff --stat -- .basedpyright/baseline.json
             exit 1
           fi
@@ -111,12 +111,12 @@ jobs:
             echo "### Coverage (Python $PYTHON_VERSION)"
             python -m coverage report --format=markdown --fail-under=0
           } >> "$GITHUB_STEP_SUMMARY"
-      # A test that rewrites a tracked file (UPDATE_GOLDEN left on, a fixture regenerated, a model
-      # file touched) would pass here and silently change the next run, so fail on any change.
-      - name: Tests left the tree clean (golden fixture unchanged)
+      # A test that rewrites a tracked file (a fixture regenerated, a bundled model config touched)
+      # would pass here and silently change the next run, so fail on any change.
+      - name: Tests left the tree clean
         run: |
           if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-            echo "::error::The test run changed tracked files; tests/fixtures/golden_analysis.json only changes on purpose."
+            echo "::error::The test run changed tracked files; tests must not rewrite fixtures or configs."
             git status --short
             git diff --stat
             exit 1
@@ -231,7 +231,9 @@ jobs:
     needs: test
     # Dependabot and fork pull requests get a read-only token, so they skip the comment; the
     # coverage floor already ran in the test job.
+    # It reports on pull requests and records master pushes; other events have nothing to report.
     if: >-
+      contains(fromJSON('["push", "pull_request"]'), github.event_name) &&
       github.actor != 'dependabot[bot]' &&
       (github.event_name != 'pull_request' ||
        github.event.pull_request.head.repo.full_name == github.repository)

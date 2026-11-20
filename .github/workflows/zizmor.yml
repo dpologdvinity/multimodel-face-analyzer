@@ -1,6 +1,6 @@
 # zizmor audits these workflow files for GitHub Actions security problems: template injection,
 # credentials persisted in checkouts, unpinned actions, over-broad permissions, dangerous
-# triggers. Findings land in the Security tab and fail the pull request.
+# triggers. Any finding fails the check, with the details in the job log.
 name: zizmor
 
 on:
@@ -21,9 +21,11 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      security-events: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
+        with:
+          # Report in the log and fail, rather than upload to code scanning (which never fails).
+          advanced-security: false
