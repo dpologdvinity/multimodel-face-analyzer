@@ -83,3 +83,7 @@ Thumbs.db
 .coverage.*
 coverage.xml
 junit.xml
+
+# Claude triage workflow scratch files
+/.triage/
+/.venv-types/

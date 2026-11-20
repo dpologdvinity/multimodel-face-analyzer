@@ -1,6 +1,6 @@
 # Automatic Claude Code review of every ready, same-repository pull request, against this repo's
 # own rules rather than generic style: the AGENTS.md invariants and the README's Responsible use
-# section. Findings arrive as inline comments plus one summary comment that is updated on each
+# section. Findings arrive as inline comments plus one summary comment that is edited on each
 # push. Formatting, lint and types are CI's job, so the review skips them. Does nothing until
 # the CLAUDE_CODE_OAUTH_TOKEN secret exists; Dependabot and fork PRs never get secrets.
 name: Claude review
@@ -21,6 +21,7 @@ jobs:
     if: >-
       !github.event.pull_request.draft &&
       github.event.pull_request.user.login != 'dependabot[bot]' &&
+      !endsWith(github.actor, '[bot]') &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -44,7 +45,6 @@ jobs:
         if: env.HAS_TOKEN == 'true'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          use_sticky_comment: "true"
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
@@ -68,7 +68,9 @@ jobs:
             6. Correctness and edge cases in the changed code, missing tests for new logic or
                a bug fix, and docs (README, ARCHITECTURE, AGENTS.md, docs/) left stale.
             Skip formatting, lint and type errors: CI checks those. Use inline comments for
-            specific lines and one short summary comment; say plainly when nothing needs
-            changing. Do not approve or request changes.
+            specific lines and one short summary, posted with
+            `gh pr comment <number> --edit-last --create-if-none --body "<summary>"` so each push
+            updates the same comment. Say plainly when nothing needs changing. Do not approve or
+            request changes.
           claude_args: >-
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Read,Glob,Grep"
