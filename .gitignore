@@ -77,3 +77,9 @@ Thumbs.db
 # Held-out evaluation: separate venv and downloaded dataset/cache (see docs/eval/)
 /.venv-eval/
 /data/
+
+# Coverage outputs
+.coverage
+.coverage.*
+coverage.xml
+junit.xml

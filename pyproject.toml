@@ -22,9 +22,33 @@ where = ["src"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 
+# Read by pyright and basedpyright (CI's type check, docs/ci.md). A local pyrightconfig.json
+# takes precedence over this table, so keep any personal one to the same settings.
+[tool.pyright]
+include = ["src", "tests", "tools", "streamlit_app.py"]
+# Vendored upstream networks (also excluded from ruff).
+exclude = ["src/face_analyzer/nets", "**/__pycache__", ".venv*", ".worktrees", "data", "tmp", "ideas"]
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "standard"
+
 [tool.ruff]
 target-version = "py311"
 extend-exclude = ["src/face_analyzer/nets"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I", "B", "UP"]
+
+[tool.coverage.run]
+source = ["face_analyzer"]
+branch = true
+# Relative paths let CI combine and publish reports from any checkout location.
+relative_files = true
+omit = ["*/face_analyzer/nets/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+# Fail below this total: a floor just under the measured 65%, raised as tests are added.
+fail_under = 63
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError"]
