@@ -106,6 +106,6 @@ pip install -r requirements-e2e.txt && python -m playwright install chromium
 streamlit run streamlit_app.py --server.headless=true &
 FACE_ANALYZER_E2E_URL=http://localhost:8501 python -m pytest tests/test_browser_smoke.py
 
-actionlint && zizmor .github/workflows                  # after editing a workflow
+actionlint && zizmor .github                            # after editing a workflow
 hadolint Dockerfile                                     # after editing the Dockerfile
 ```
