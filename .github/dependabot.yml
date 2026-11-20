@@ -1,11 +1,13 @@
 # Weekly dependency updates. Minor/patch bumps are grouped into one PR per
-# ecosystem; major bumps arrive as individual PRs for separate review.
+# ecosystem and merge themselves once CI is green (dependabot-automerge.yml);
+# major bumps arrive as individual PRs for separate review.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    labels: [dependencies, "area: ci"]
     commit-message:
       prefix: "ci"
       include: scope
@@ -16,6 +18,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    labels: [dependencies, python]
     commit-message:
       prefix: "chore"
       include: scope
@@ -31,6 +34,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    labels: [dependencies, docker]
     commit-message:
       prefix: "chore"
       include: scope

@@ -1,0 +1,34 @@
+# Turns on auto-merge for Dependabot's minor and patch updates (pip, GitHub Actions, Docker).
+# GitHub merges the PR only after the required "CI OK" check passes, so a bump that breaks a
+# test, the browser check or the audit stays open. Major updates wait for a person: a major
+# OpenCV, Streamlit or onnxruntime release can change model outputs (the golden test would
+# catch it, but the fix is a human call).
+name: Dependabot auto-merge
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions: {}
+
+jobs:
+  automerge:
+    # The pull request's author, unlike github.actor, cannot be spoofed by re-running a job.
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - id: meta
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+      - name: Enable auto-merge for minor and patch updates
+        if: steps.meta.outputs.update-type != 'version-update:semver-major'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          UPDATE: ${{ steps.meta.outputs.update-type }}
+        run: |
+          echo "Update type: $UPDATE"
+          gh pr merge --auto --squash "$PR_URL"

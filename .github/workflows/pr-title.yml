@@ -1,0 +1,27 @@
+# Squash merges use the pull request title as the commit subject, so the title must be a
+# Conventional Commit (AGENTS.md): type(optional-scope): imperative summary.
+name: PR title
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  title:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      # The title reaches the script through an env var, never the script text.
+      - env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          re='^(feat|fix|refactor|test|docs|chore|ci|perf|build|revert|style)(\([a-z0-9._/-]+\))?!?: [^ ].+'
+          if [[ ! "$TITLE" =~ $re ]]; then
+            echo "::error title=PR title::\"$TITLE\" is not a Conventional Commit title, e.g. fix(models): skip a missing glasses file"
+            exit 1
+          fi
+          echo "ok: $TITLE"
